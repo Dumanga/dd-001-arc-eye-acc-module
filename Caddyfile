@@ -1,0 +1,37 @@
+# Caddy reverse proxy for the arceye accounting module.
+#
+# Terminates HTTPS using the Cloudflare Origin Certificate dropped into
+# ./certs/ (mounted at /etc/caddy/certs inside the container). The cert
+# is valid only for traffic that comes through Cloudflare — Cloudflare
+# SSL mode must be set to Full (strict) so end-to-end is encrypted.
+
+{
+  email admin@arceyedc.com
+  # No automatic Let's Encrypt — we use the Cloudflare Origin Certificate
+  # explicitly. This silences the ACME on-demand warning.
+  auto_https off
+}
+
+arceyedc.com, www.arceyedc.com {
+  tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+
+  encode gzip zstd
+
+  # Forward everything to the Next.js app on the internal docker network.
+  reverse_proxy app:3000
+
+  # Some sane defaults — these can be tightened later via Cloudflare
+  # Transform Rules if needed.
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    -Server
+  }
+}
+
+# Catch-all on port 80 — redirect to canonical HTTPS hostname. Cloudflare
+# normally hits us on 443 directly, but this protects against direct-IP
+# probes hitting port 80.
+:80 {
+  redir https://arceyedc.com{uri} permanent
+}

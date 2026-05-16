@@ -46,7 +46,7 @@ async function main() {
     EXPENSES: "Expenses",
   };
 
-  const password = "DOB@2026";
+  const password = "ArcEye@SA2026";
   const passwordHash = await bcrypt.hash(password, 12);
 
   await prisma.store.upsert({
@@ -65,7 +65,7 @@ async function main() {
   });
 
   await prisma.accountingUser.upsert({
-    where: { username: "accounting.superadmin@dob.com" },
+    where: { username: "accounting.superadmin@arceyedc.com" },
     update: {
       displayName: "Accounting Super Admin",
       passwordHash,
@@ -82,7 +82,7 @@ async function main() {
       accessSettings: true,
     },
     create: {
-      username: "accounting.superadmin@dob.com",
+      username: "accounting.superadmin@arceyedc.com",
       displayName: "Accounting Super Admin",
       passwordHash,
       role: "SUPER_ADMIN",

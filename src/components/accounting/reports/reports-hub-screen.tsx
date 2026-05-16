@@ -49,6 +49,22 @@ import {
 import { ReportsPreviewShell } from "./reports-preview-shell";
 import { ReportPicker, type ReportPickerKind } from "./report-picker";
 import { StyledDatePicker } from "@/components/accounting/styled-date-picker";
+import { POS_ENABLED } from "@/lib/accounting/feature-flags";
+
+// POS billing is gated by a feature flag — when off, drop the POS-only
+// report tiles and rename the "Sales & POS" category so the customer
+// doesn't see references to a surface they can't reach.
+const POS_REPORT_IDS = new Set(["pos-bill-history", "pos-sales-summary"]);
+const VISIBLE_REPORTS = POS_ENABLED
+  ? REPORTS
+  : REPORTS.filter((r) => !POS_REPORT_IDS.has(r.id));
+const VISIBLE_CATEGORIES = POS_ENABLED
+  ? REPORT_CATEGORIES
+  : REPORT_CATEGORIES.map((c) =>
+      c.id === "sales-pos"
+        ? { ...c, label: "Sales", description: "Invoice-side sales registers and customer returns." }
+        : c,
+    );
 
 // ─── Tone styles for category tiles & cards ────────────────────────────
 
@@ -208,7 +224,7 @@ function CatalogView({
 }) {
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    return REPORTS.filter((r) => {
+    return VISIBLE_REPORTS.filter((r) => {
       if (activeCategory !== "ALL" && r.category !== activeCategory) return false;
       if (!term) return true;
       return (
@@ -223,7 +239,11 @@ function CatalogView({
       <AccountingPageIntro
         eyebrow="Reports"
         title="Every accounting and operations report — one hub, one letterhead."
-        description="Pick a report below, set the filters, preview as A4 with our letterhead, then export as PDF or Excel. POS history, customer / supplier statements, journal entries, trial balance, profit & loss, stock movements — all here."
+        description={
+          POS_ENABLED
+            ? "Pick a report below, set the filters, preview as A4 with our letterhead, then export as PDF or Excel. POS history, customer / supplier statements, journal entries, trial balance, profit & loss, stock movements — all here."
+            : "Pick a report below, set the filters, preview as A4 with our letterhead, then export as PDF or Excel. Customer / supplier statements, journal entries, trial balance, profit & loss, stock movements — all here."
+        }
       />
 
       {/* Top toolbar — search + category pills */}
@@ -235,7 +255,7 @@ function CatalogView({
               type="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search reports — POS, aging, journal, P&L…"
+              placeholder={POS_ENABLED ? "Search reports — POS, aging, journal, P&L…" : "Search reports — aging, journal, P&L…"}
               className="h-11 w-full rounded-xl border border-[#e2d8cf] bg-white pl-11 pr-4 text-sm text-[#1f1d1c] outline-none transition focus:border-[#ff7a12]"
             />
           </div>
@@ -247,7 +267,7 @@ function CatalogView({
               onClick={() => setActiveCategory("ALL")}
               tone="amber"
             />
-            {REPORT_CATEGORIES.map((cat) => (
+            {VISIBLE_CATEGORIES.map((cat) => (
               <CategoryPill
                 key={cat.id}
                 label={cat.label}
@@ -263,7 +283,7 @@ function CatalogView({
 
       {/* Tiles, grouped by category */}
       {activeCategory === "ALL" ? (
-        REPORT_CATEGORIES.map((cat) => {
+        VISIBLE_CATEGORIES.map((cat) => {
           const reportsInCat = filtered.filter((r) => r.category === cat.id);
           if (reportsInCat.length === 0) return null;
           return (
@@ -277,7 +297,7 @@ function CatalogView({
         })
       ) : (
         <CategorySection
-          category={REPORT_CATEGORIES.find((c) => c.id === activeCategory)!}
+          category={VISIBLE_CATEGORIES.find((c) => c.id === activeCategory)!}
           reports={filtered}
           onPickReport={onPickReport}
         />
@@ -461,7 +481,7 @@ function ConfigureView({
   // Statement, Account Ledger) can't be left blank.
   const [showValidation, setShowValidation] = useState(false);
 
-  const cat = REPORT_CATEGORIES.find((c) => c.id === report.category)!;
+  const cat = VISIBLE_CATEGORIES.find((c) => c.id === report.category)!;
   const t = TONE_STYLES[cat.tone];
   const Icon = report.icon;
 

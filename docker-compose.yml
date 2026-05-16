@@ -1,0 +1,71 @@
+# Production docker compose for the arceye accounting module.
+#
+# Three services on a private bridge network:
+#   db     — MySQL 8 with a persistent named volume
+#   app    — Next.js production server (port 3000 internal)
+#   caddy  — reverse proxy that terminates HTTPS at the edge and forwards
+#            traffic to `app:3000`. Uses Cloudflare Origin Certificate so
+#            Cloudflare SSL mode can stay on Full (strict).
+#
+# Pull secrets from `.env` (see .env.production.example).
+
+services:
+  db:
+    image: mysql:8
+    container_name: arceye-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      TZ: Asia/Colombo
+    command: ["--default-authentication-plugin=caching_sha2_password"]
+    volumes:
+      - db_data:/var/lib/mysql
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
+    container_name: arceye-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
+      NODE_ENV: production
+      TZ: Asia/Colombo
+    networks: [internal]
+
+  caddy:
+    image: caddy:2
+    container_name: arceye-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/etc/caddy/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    networks: [internal]
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:
+    driver: bridge

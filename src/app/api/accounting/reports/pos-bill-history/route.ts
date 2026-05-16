@@ -10,6 +10,7 @@ import { authorizeAccountingAnyAccess } from "@/lib/accounting/option-access";
 import { getListStoreFilter } from "@/lib/accounting/store-scope";
 import { fail, ok } from "@/lib/api/response";
 import { prisma } from "@/lib/db";
+import { POS_ENABLED } from "@/lib/accounting/feature-flags";
 import {
   fmtMoneyAlways,
   fmtDateTimeSlt,
@@ -22,6 +23,12 @@ const ALLOWED_METHODS = new Set(["CASH", "CARD", "MIXED", "SPLIT"]);
 
 export async function GET(request: Request) {
   try {
+    if (!POS_ENABLED) {
+      return NextResponse.json(
+        fail("POS reporting is disabled on this deployment.", "FEATURE_DISABLED"),
+        { status: 404 }
+      );
+    }
     const auth = await authorizeAccountingAnyAccess(["reports"]);
     if ("error" in auth) return auth.error;
     const { currentUser } = auth;
