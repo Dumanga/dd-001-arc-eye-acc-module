@@ -11,14 +11,17 @@
 
 services:
   db:
-    image: mysql:8
+    # Pinned to 8.0 — the `mysql:8` tag now resolves to 8.4, which removed
+    # the `default-authentication-plugin` server option and breaks the
+    # legacy command line. 8.0 already defaults to caching_sha2_password
+    # so the explicit flag is no longer needed either.
+    image: mysql:8.0
     container_name: arceye-db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       TZ: Asia/Colombo
-    command: ["--default-authentication-plugin=caching_sha2_password"]
     volumes:
       - db_data:/var/lib/mysql
     networks: [internal]
