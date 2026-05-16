@@ -240,7 +240,7 @@ export function renderPosBillReceipt(data: PosReceiptData): string {
     <body>
       <div class="receipt">
         <img class="logo-img" src="/assets/icon.png" alt="Arc Eye" />
-        <div class="company-name">DOCTOR OF BAT</div>
+        <div class="company-name">ARC EYE DC</div>
         <div class="company-address">
           No 65, Thalawathugoda Road,<br />
           Pitakotte, Colombo

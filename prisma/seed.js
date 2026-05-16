@@ -46,65 +46,8 @@ async function main() {
     EXPENSES: "Expenses",
   };
 
-  const username = "superadmin@dob.com";
-  const legacyUsername = "SuperAdmin@DOB";
   const password = "DOB@2026";
   const passwordHash = await bcrypt.hash(password, 12);
-
-  const [existingNew, existingLegacy] = await Promise.all([
-    prisma.user.findUnique({
-      where: { username },
-      select: { id: true },
-    }),
-    prisma.user.findUnique({
-      where: { username: legacyUsername },
-      select: { id: true },
-    }),
-  ]);
-
-  if (!existingNew && existingLegacy) {
-    await prisma.user.update({
-      where: { id: existingLegacy.id },
-      data: { username },
-    });
-  }
-
-  await prisma.user.upsert({
-    where: { username },
-    update: {
-      displayName: "Super Admin",
-      passwordHash,
-      role: "SUPER_ADMIN",
-      system: "BOTH",
-      storeId: null,
-      profileImageId: 1,
-      accessDashboard: true,
-      accessRepairs: true,
-      accessClients: true,
-      accessBrands: true,
-      accessUsers: true,
-      accessStores: true,
-      accessSms: true,
-      accessSettings: true,
-    },
-    create: {
-      username,
-      displayName: "Super Admin",
-      passwordHash,
-      role: "SUPER_ADMIN",
-      system: "BOTH",
-      storeId: null,
-      profileImageId: 1,
-      accessDashboard: true,
-      accessRepairs: true,
-      accessClients: true,
-      accessBrands: true,
-      accessUsers: true,
-      accessStores: true,
-      accessSms: true,
-      accessSettings: true,
-    },
-  });
 
   await prisma.store.upsert({
     where: { code: "MAIN-001" },
@@ -155,30 +98,6 @@ async function main() {
       accessSettings: true,
     },
   });
-
-  const clients = [
-    { name: "Nimal Perera", mobile: "94718808854", tier: "GOLD" },
-    { name: "Axar Patel", mobile: "94711234567", tier: "SILVER" },
-    { name: "Ruwan Silva", mobile: "94770111222", tier: "BRONZE" },
-    { name: "Dinesh Fernando", mobile: "94772223344", tier: "SILVER" },
-    { name: "Kumari Jayasinghe", mobile: "94775556677", tier: "BRONZE" },
-    { name: "Sanjaya Rathnayake", mobile: "94776677889", tier: "GOLD" },
-    { name: "Thilini Perera", mobile: "94771112233", tier: "BRONZE" },
-    { name: "Chamithra de Silva", mobile: "94772224455", tier: "SILVER" },
-    { name: "Isuru Gunathilaka", mobile: "94773335566", tier: "BRONZE" },
-    { name: "Pradeep Wijesinghe", mobile: "94774446677", tier: "GOLD" },
-  ];
-
-  for (const client of clients) {
-    await prisma.client.upsert({
-      where: { mobile: client.mobile },
-      update: {
-        name: client.name,
-        tier: client.tier,
-      },
-      create: client,
-    });
-  }
 
   const categoryEntries = Object.entries(accountCatalog);
 

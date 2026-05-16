@@ -6,8 +6,6 @@ import {
   hasAccountingAccess,
   requireAccountingUser,
 } from "@/lib/auth/accounting";
-import { hasOperationAccess, requireOperationUser } from "@/lib/auth/operation";
-import { resolvePortal } from "@/lib/auth/session";
 
 function parseNumber(value: string | null, fallback: number) {
   const num = value ? Number(value) : fallback;
@@ -25,30 +23,8 @@ function normalizeStatus(value: unknown): "ACTIVE" | "PAUSED" | null {
   return null;
 }
 
-async function authorizeStoresAccess(request: Request) {
-  const portal = resolvePortal(request);
-
-  if (portal === "ACCOUNTING") {
-    const currentUser = await requireAccountingUser();
-    if (!currentUser) {
-      return {
-        error: NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
-          status: 401,
-        }),
-      };
-    }
-    if (!hasAccountingAccess(currentUser, "settings")) {
-      return {
-        error: NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
-          status: 403,
-        }),
-      };
-    }
-
-    return { currentUser, portal };
-  }
-
-  const currentUser = await requireOperationUser();
+async function authorizeStoresAccess() {
+  const currentUser = await requireAccountingUser();
   if (!currentUser) {
     return {
       error: NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
@@ -56,7 +32,7 @@ async function authorizeStoresAccess(request: Request) {
       }),
     };
   }
-  if (!hasOperationAccess(currentUser, "stores")) {
+  if (!hasAccountingAccess(currentUser, "settings")) {
     return {
       error: NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
         status: 403,
@@ -64,12 +40,12 @@ async function authorizeStoresAccess(request: Request) {
     };
   }
 
-  return { currentUser, portal };
+  return { currentUser };
 }
 
 export async function GET(request: Request) {
   try {
-    const auth = await authorizeStoresAccess(request);
+    const auth = await authorizeStoresAccess();
     if ("error" in auth) {
       return auth.error;
     }
@@ -92,13 +68,7 @@ export async function GET(request: Request) {
       where.status = status;
     }
 
-    const baseUserWhere: Prisma.UserWhereInput = {
-      role: { not: "SUPER_ADMIN" },
-      storeId: { not: null },
-      system: { in: ["OPERATION", "BOTH"] },
-    };
-
-    const [items, total, activeCount, totalStaff, staffByStore] = await Promise.all([
+    const [items, total, activeCount] = await Promise.all([
       prisma.store.findMany({
         where,
         orderBy: { name: "asc" },
@@ -107,32 +77,18 @@ export async function GET(request: Request) {
       }),
       prisma.store.count({ where }),
       prisma.store.count({ where: { status: "ACTIVE" } }),
-      prisma.user.count({
-        where: baseUserWhere,
-      }),
-      prisma.user.groupBy({
-        by: ["storeId"],
-        where: baseUserWhere,
-        _count: { storeId: true },
-      }),
     ]);
-
-    const staffCountMap = new Map(
-      staffByStore
-        .filter((entry) => entry.storeId)
-        .map((entry) => [entry.storeId as string, entry._count.storeId])
-    );
 
     return NextResponse.json(
       ok(
         {
           items: items.map((store) => ({
             ...store,
-            staffCount: staffCountMap.get(store.id) ?? 0,
+            staffCount: 0,
           })),
           total,
           activeCount,
-          totalStaff,
+          totalStaff: 0,
           page,
           pageSize,
         },
@@ -149,7 +105,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await authorizeStoresAccess(request);
+    const auth = await authorizeStoresAccess();
     if ("error" in auth) {
       return auth.error;
     }
@@ -253,7 +209,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const auth = await authorizeStoresAccess(request);
+    const auth = await authorizeStoresAccess();
     if ("error" in auth) {
       return auth.error;
     }
@@ -387,7 +343,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const auth = await authorizeStoresAccess(request);
+    const auth = await authorizeStoresAccess();
     if ("error" in auth) {
       return auth.error;
     }

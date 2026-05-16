@@ -9,7 +9,7 @@ import {
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
-  const cookieName = getSessionCookieName("ACCOUNTING");
+  const cookieName = getSessionCookieName();
   const token = cookieStore.get(cookieName)?.value;
 
   if (token) {

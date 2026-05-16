@@ -5,7 +5,7 @@ import { fail, ok } from "@/lib/api/response";
 import type { LoginRequestDTO } from "@/lib/auth/dto";
 import type { LoginResponseDTO } from "@/lib/auth/dto";
 import { prisma } from "@/lib/db";
-import { createSessionToken, getSessionCookieName, hashSessionToken, resolvePortal } from "@/lib/auth/session";
+import { createSessionToken, getSessionCookieName, hashSessionToken } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
@@ -67,7 +67,6 @@ export async function POST(request: Request) {
     }
 
     const data = await parseBody(request);
-    const portal = resolvePortal(request, data.portal);
     const incomingKeys = Object.keys(data);
 
     for (const key of incomingKeys) {
@@ -96,96 +95,51 @@ export async function POST(request: Request) {
     const expiresAt = new Date(
       Date.now() + (rememberMe ? SEVEN_DAYS_MS : ONE_DAY_MS)
     );
-    let response: LoginResponseDTO;
 
-    if (portal === "ACCOUNTING") {
-      const user = await prisma.accountingUser.findFirst({
-        where: {
-          username: identifier,
-        },
-      });
+    const user = await prisma.accountingUser.findFirst({
+      where: {
+        username: identifier,
+      },
+    });
 
-      if (!user) {
-        return NextResponse.json(
-          fail("Invalid credentials.", "INVALID_CREDENTIALS"),
-          { status: 401 }
-        );
-      }
-
-      const matches = await bcrypt.compare(password, user.passwordHash);
-      if (!matches) {
-        return NextResponse.json(
-          fail("Invalid credentials.", "INVALID_CREDENTIALS"),
-          { status: 401 }
-        );
-      }
-
-      await prisma.$transaction([
-        prisma.accountingSession.deleteMany({
-          where: {
-            accountingUserId: user.id,
-          },
-        }),
-        prisma.accountingSession.create({
-          data: {
-            tokenHash,
-            accountingUserId: user.id,
-            expiresAt,
-          },
-        }),
-      ]);
-
-      response = {
-        userId: user.id,
-        role: user.role,
-        displayName: user.displayName,
-      };
-    } else {
-      const user = await prisma.user.findFirst({
-        where: {
-          username: identifier,
-        },
-      });
-
-      if (!user) {
-        return NextResponse.json(
-          fail("Invalid credentials.", "INVALID_CREDENTIALS"),
-          { status: 401 }
-        );
-      }
-
-      const matches = await bcrypt.compare(password, user.passwordHash);
-      if (!matches) {
-        return NextResponse.json(
-          fail("Invalid credentials.", "INVALID_CREDENTIALS"),
-          { status: 401 }
-        );
-      }
-
-      if (user.system !== "OPERATION" && user.system !== "BOTH") {
-        return NextResponse.json(
-          fail("Not authorized for this portal.", "FORBIDDEN"),
-          { status: 403 }
-        );
-      }
-
-      await prisma.session.create({
-        data: {
-          tokenHash,
-          userId: user.id,
-          expiresAt,
-        },
-      });
-
-      response = {
-        userId: user.id,
-        role: user.role,
-        displayName: user.displayName,
-      };
+    if (!user) {
+      return NextResponse.json(
+        fail("Invalid credentials.", "INVALID_CREDENTIALS"),
+        { status: 401 }
+      );
     }
 
+    const matches = await bcrypt.compare(password, user.passwordHash);
+    if (!matches) {
+      return NextResponse.json(
+        fail("Invalid credentials.", "INVALID_CREDENTIALS"),
+        { status: 401 }
+      );
+    }
+
+    await prisma.$transaction([
+      prisma.accountingSession.deleteMany({
+        where: {
+          accountingUserId: user.id,
+        },
+      }),
+      prisma.accountingSession.create({
+        data: {
+          tokenHash,
+          accountingUserId: user.id,
+          expiresAt,
+        },
+      }),
+    ]);
+
+    const response: LoginResponseDTO = {
+      userId: user.id,
+      role: user.role,
+      displayName: user.displayName,
+    };
+
     const cookieStore = await cookies();
-    cookieStore.set(getSessionCookieName(portal), rawToken, {
+    cookieStore.set(getSessionCookieName(), rawToken, {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",

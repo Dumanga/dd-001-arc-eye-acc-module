@@ -4,19 +4,6 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
 import { hasAccountingAccess, requireAccountingUser } from "@/lib/auth/accounting";
-import { hasOperationAccess, requireOperationUser } from "@/lib/auth/operation";
-import { resolvePortal } from "@/lib/auth/session";
-
-const operationAccessOptions = [
-  "dashboard",
-  "repairs",
-  "clients",
-  "brands",
-  "users",
-  "stores",
-  "sms",
-  "settings",
-] as const;
 
 const accountingAccessOptions = [
   "dashboard",
@@ -51,31 +38,8 @@ function isValidProfileImageId(value: unknown) {
   return typeof value === "number" && value >= 1 && value <= 5;
 }
 
-async function authorizeUserAccess(request: Request) {
-  const portal = resolvePortal(request);
-
-  if (portal === "ACCOUNTING") {
-    const currentUser = await requireAccountingUser();
-    if (!currentUser) {
-      return {
-        error: NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
-          status: 401,
-        }),
-      };
-    }
-
-    if (!hasAccountingAccess(currentUser, "settings") || currentUser.role !== "SUPER_ADMIN") {
-      return {
-        error: NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
-          status: 403,
-        }),
-      };
-    }
-
-    return { currentUser, portal };
-  }
-
-  const currentUser = await requireOperationUser();
+async function authorizeUserAccess() {
+  const currentUser = await requireAccountingUser();
   if (!currentUser) {
     return {
       error: NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
@@ -84,7 +48,7 @@ async function authorizeUserAccess(request: Request) {
     };
   }
 
-  if (!hasOperationAccess(currentUser, "users")) {
+  if (!hasAccountingAccess(currentUser, "settings") || currentUser.role !== "SUPER_ADMIN") {
     return {
       error: NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
         status: 403,
@@ -92,12 +56,12 @@ async function authorizeUserAccess(request: Request) {
     };
   }
 
-  return { currentUser, portal };
+  return { currentUser };
 }
 
 export async function GET(request: Request) {
   try {
-    const auth = await authorizeUserAccess(request);
+    const auth = await authorizeUserAccess();
     if ("error" in auth) {
       return auth.error;
     }
@@ -107,107 +71,25 @@ export async function GET(request: Request) {
     const pageSize = Math.min(parseNumber(searchParams.get("pageSize"), 10), 50);
     const search = (searchParams.get("search") ?? "").trim();
 
-    if (auth.portal === "ACCOUNTING") {
-      const where: Prisma.AccountingUserWhereInput = search
-        ? {
-            OR: [
-              {
-                displayName: {
-                  contains: search,
-                },
-              },
-              {
-                username: {
-                  contains: search,
-                },
-              },
-            ],
-          }
-        : {};
-
-      const [items, total, superAdminCount, staffCount] = await Promise.all([
-        prisma.accountingUser.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          skip: (page - 1) * pageSize,
-          take: pageSize,
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            role: true,
-            profileImageId: true,
-            createdAt: true,
-            storeId: true,
-            store: {
-              select: {
-                id: true,
-                name: true,
+    const where: Prisma.AccountingUserWhereInput = search
+      ? {
+          OR: [
+            {
+              displayName: {
+                contains: search,
               },
             },
-            accessDashboard: true,
-            accessSuppliers: true,
-            accessCustomers: true,
-            accessInventory: true,
-            accessAccounts: true,
-            accessReports: true,
-            accessPos: true,
-            accessSettings: true,
-          },
-        }),
-        prisma.accountingUser.count({ where }),
-        prisma.accountingUser.count({ where: { role: "SUPER_ADMIN" } }),
-        prisma.accountingUser.count({
-          where: { role: { in: ["CASHIER", "DATA_ENTRY", "SUPERVISOR"] } },
-        }),
-      ]);
-
-      return NextResponse.json(
-        ok(
-          {
-            items,
-            total,
-            superAdminCount,
-            staffCount,
-            page,
-            pageSize,
-          },
-          "Users fetched."
-        ),
-        { status: 200 }
-      );
-    }
-
-    const baseWhere: Prisma.UserWhereInput = {
-      system: {
-        in: ["OPERATION", "BOTH"],
-      },
-    };
-
-    const where: Prisma.UserWhereInput = search
-      ? {
-          AND: [
-            baseWhere,
             {
-              OR: [
-                {
-                  displayName: {
-                    contains: search,
-                  },
-                },
-                {
-                  username: {
-                    contains: search,
-                  },
-                },
-              ],
+              username: {
+                contains: search,
+              },
             },
           ],
         }
-      : baseWhere;
+      : {};
 
     const [items, total, superAdminCount, staffCount] = await Promise.all([
-      prisma.user.findMany({
+      prisma.accountingUser.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
@@ -217,7 +99,6 @@ export async function GET(request: Request) {
           username: true,
           displayName: true,
           role: true,
-          system: true,
           profileImageId: true,
           createdAt: true,
           storeId: true,
@@ -228,19 +109,19 @@ export async function GET(request: Request) {
             },
           },
           accessDashboard: true,
-          accessRepairs: true,
-          accessClients: true,
-          accessBrands: true,
-          accessUsers: true,
-          accessStores: true,
-          accessSms: true,
+          accessSuppliers: true,
+          accessCustomers: true,
+          accessInventory: true,
+          accessAccounts: true,
+          accessReports: true,
+          accessPos: true,
           accessSettings: true,
         },
       }),
-      prisma.user.count({ where }),
-      prisma.user.count({ where: { ...baseWhere, role: "SUPER_ADMIN" } }),
-      prisma.user.count({
-        where: { ...baseWhere, role: { in: ["CASHIER", "REPAIR_STAFF"] } },
+      prisma.accountingUser.count({ where }),
+      prisma.accountingUser.count({ where: { role: "SUPER_ADMIN" } }),
+      prisma.accountingUser.count({
+        where: { role: { in: ["CASHIER", "DATA_ENTRY", "SUPERVISOR"] } },
       }),
     ]);
 
@@ -267,7 +148,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await authorizeUserAccess(request);
+    const auth = await authorizeUserAccess();
     if ("error" in auth) {
       return auth.error;
     }
@@ -323,63 +204,11 @@ export async function POST(request: Request) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
+    const access = sanitizeAccess(body.access, accountingAccessOptions);
 
-    if (auth.portal === "ACCOUNTING") {
-      const access = sanitizeAccess(body.access, accountingAccessOptions);
-
-      if (!["CASHIER", "DATA_ENTRY", "SUPERVISOR"].includes(role)) {
-        return NextResponse.json(
-          fail("Role must be Cashier, Data Entry, or Supervisor.", "VALIDATION_ERROR"),
-          { status: 400 }
-        );
-      }
-
-      if (access.length === 0) {
-        return NextResponse.json(
-          fail("Select at least one access area.", "VALIDATION_ERROR"),
-          { status: 400 }
-        );
-      }
-
-      if (access.length === accountingAccessOptions.length) {
-        return NextResponse.json(
-          fail("All access cannot be selected. Use Super Admin instead.", "VALIDATION_ERROR"),
-          { status: 400 }
-        );
-      }
-
-      const accountingRole = role as "CASHIER" | "DATA_ENTRY" | "SUPERVISOR";
-      const profileImageId = body.profileImageId as number;
-
-      const created = await prisma.accountingUser.create({
-        data: {
-          username,
-          displayName,
-          passwordHash,
-          role: accountingRole,
-          profileImageId,
-          storeId,
-          accessDashboard: access.includes("dashboard"),
-          accessSuppliers: access.includes("suppliers"),
-          accessCustomers: access.includes("customers"),
-          accessInventory: access.includes("inventory"),
-          accessAccounts: access.includes("accounts"),
-          accessReports: access.includes("reports"),
-          accessPos: access.includes("pos"),
-          accessSettings: access.includes("settings"),
-        },
-      });
-
-      return NextResponse.json(ok({ id: created.id }, "User created."), {
-        status: 201,
-      });
-    }
-
-    const access = sanitizeAccess(body.access, operationAccessOptions);
-
-    if (role !== "CASHIER" && role !== "REPAIR_STAFF") {
+    if (!["CASHIER", "DATA_ENTRY", "SUPERVISOR"].includes(role)) {
       return NextResponse.json(
-        fail("Role must be Cashier or Repair Staff.", "VALIDATION_ERROR"),
+        fail("Role must be Cashier, Data Entry, or Supervisor.", "VALIDATION_ERROR"),
         { status: 400 }
       );
     }
@@ -391,32 +220,31 @@ export async function POST(request: Request) {
       );
     }
 
-    if (access.length === operationAccessOptions.length) {
+    if (access.length === accountingAccessOptions.length) {
       return NextResponse.json(
         fail("All access cannot be selected. Use Super Admin instead.", "VALIDATION_ERROR"),
         { status: 400 }
       );
     }
 
-    const operationRole = role as "CASHIER" | "REPAIR_STAFF";
+    const accountingRole = role as "CASHIER" | "DATA_ENTRY" | "SUPERVISOR";
     const profileImageId = body.profileImageId as number;
 
-    const created = await prisma.user.create({
+    const created = await prisma.accountingUser.create({
       data: {
         username,
         displayName,
         passwordHash,
-        role: operationRole,
-        system: "OPERATION",
+        role: accountingRole,
         profileImageId,
         storeId,
         accessDashboard: access.includes("dashboard"),
-        accessRepairs: access.includes("repairs"),
-        accessClients: access.includes("clients"),
-        accessBrands: access.includes("brands"),
-        accessUsers: access.includes("users"),
-        accessStores: access.includes("stores"),
-        accessSms: access.includes("sms"),
+        accessSuppliers: access.includes("suppliers"),
+        accessCustomers: access.includes("customers"),
+        accessInventory: access.includes("inventory"),
+        accessAccounts: access.includes("accounts"),
+        accessReports: access.includes("reports"),
+        accessPos: access.includes("pos"),
         accessSettings: access.includes("settings"),
       },
     });
@@ -445,7 +273,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const auth = await authorizeUserAccess(request);
+    const auth = await authorizeUserAccess();
     if ("error" in auth) {
       return auth.error;
     }
@@ -508,88 +336,11 @@ export async function PATCH(request: Request) {
       );
     }
 
-    if (auth.portal === "ACCOUNTING") {
-      const access = sanitizeAccess(body.access, accountingAccessOptions);
+    const access = sanitizeAccess(body.access, accountingAccessOptions);
 
-      if (!["CASHIER", "DATA_ENTRY", "SUPERVISOR"].includes(role)) {
-        return NextResponse.json(
-          fail("Role must be Cashier, Data Entry, or Supervisor.", "VALIDATION_ERROR"),
-          { status: 400 }
-        );
-      }
-
-      if (access.length === 0) {
-        return NextResponse.json(
-          fail("Select at least one access area.", "VALIDATION_ERROR"),
-          { status: 400 }
-        );
-      }
-
-      if (access.length === accountingAccessOptions.length) {
-        return NextResponse.json(
-          fail("All access cannot be selected. Use Super Admin instead.", "VALIDATION_ERROR"),
-          { status: 400 }
-        );
-      }
-
-      const accountingRole = role as "CASHIER" | "DATA_ENTRY" | "SUPERVISOR";
-      const profileImageId = body.profileImageId as number;
-
-      const updateData: Prisma.AccountingUserUpdateInput = {
-        username,
-        displayName,
-        role: accountingRole,
-        profileImageId,
-        store: {
-          connect: {
-            id: storeId,
-          },
-        },
-        accessDashboard: access.includes("dashboard"),
-        accessSuppliers: access.includes("suppliers"),
-        accessCustomers: access.includes("customers"),
-        accessInventory: access.includes("inventory"),
-        accessAccounts: access.includes("accounts"),
-        accessReports: access.includes("reports"),
-        accessPos: access.includes("pos"),
-        accessSettings: access.includes("settings"),
-      };
-
-      if (password) {
-        updateData.passwordHash = await bcrypt.hash(password, 12);
-      }
-
-      const existing = await prisma.accountingUser.findUnique({
-        where: { id },
-        select: { role: true },
-      });
-
-      if (!existing) {
-        return NextResponse.json(fail("User not found.", "NOT_FOUND"), {
-          status: 404,
-        });
-      }
-
-      if (existing.role === "SUPER_ADMIN") {
-        return NextResponse.json(
-          fail("Super Admin cannot be edited from this form.", "FORBIDDEN"),
-          { status: 403 }
-        );
-      }
-
-      await prisma.accountingUser.update({
-        where: { id },
-        data: updateData,
-      });
-
-      return NextResponse.json(ok(null, "User updated."), { status: 200 });
-    }
-
-    const access = sanitizeAccess(body.access, operationAccessOptions);
-
-    if (role !== "CASHIER" && role !== "REPAIR_STAFF") {
+    if (!["CASHIER", "DATA_ENTRY", "SUPERVISOR"].includes(role)) {
       return NextResponse.json(
-        fail("Role must be Cashier or Repair Staff.", "VALIDATION_ERROR"),
+        fail("Role must be Cashier, Data Entry, or Supervisor.", "VALIDATION_ERROR"),
         { status: 400 }
       );
     }
@@ -601,20 +352,20 @@ export async function PATCH(request: Request) {
       );
     }
 
-    if (access.length === operationAccessOptions.length) {
+    if (access.length === accountingAccessOptions.length) {
       return NextResponse.json(
         fail("All access cannot be selected. Use Super Admin instead.", "VALIDATION_ERROR"),
         { status: 400 }
       );
     }
 
-    const operationRole = role as "CASHIER" | "REPAIR_STAFF";
+    const accountingRole = role as "CASHIER" | "DATA_ENTRY" | "SUPERVISOR";
     const profileImageId = body.profileImageId as number;
 
-    const updateData: Prisma.UserUpdateInput = {
+    const updateData: Prisma.AccountingUserUpdateInput = {
       username,
       displayName,
-      role: operationRole,
+      role: accountingRole,
       profileImageId,
       store: {
         connect: {
@@ -622,12 +373,12 @@ export async function PATCH(request: Request) {
         },
       },
       accessDashboard: access.includes("dashboard"),
-      accessRepairs: access.includes("repairs"),
-      accessClients: access.includes("clients"),
-      accessBrands: access.includes("brands"),
-      accessUsers: access.includes("users"),
-      accessStores: access.includes("stores"),
-      accessSms: access.includes("sms"),
+      accessSuppliers: access.includes("suppliers"),
+      accessCustomers: access.includes("customers"),
+      accessInventory: access.includes("inventory"),
+      accessAccounts: access.includes("accounts"),
+      accessReports: access.includes("reports"),
+      accessPos: access.includes("pos"),
       accessSettings: access.includes("settings"),
     };
 
@@ -635,7 +386,25 @@ export async function PATCH(request: Request) {
       updateData.passwordHash = await bcrypt.hash(password, 12);
     }
 
-    await prisma.user.update({
+    const existing = await prisma.accountingUser.findUnique({
+      where: { id },
+      select: { role: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json(fail("User not found.", "NOT_FOUND"), {
+        status: 404,
+      });
+    }
+
+    if (existing.role === "SUPER_ADMIN") {
+      return NextResponse.json(
+        fail("Super Admin cannot be edited from this form.", "FORBIDDEN"),
+        { status: 403 }
+      );
+    }
+
+    await prisma.accountingUser.update({
       where: { id },
       data: updateData,
     });
@@ -674,7 +443,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const auth = await authorizeUserAccess(request);
+    const auth = await authorizeUserAccess();
     if ("error" in auth) {
       return auth.error;
     }
@@ -688,33 +457,7 @@ export async function DELETE(request: Request) {
       });
     }
 
-    if (auth.portal === "ACCOUNTING") {
-      const user = await prisma.accountingUser.findUnique({
-        where: { id },
-        select: { role: true },
-      });
-
-      if (!user) {
-        return NextResponse.json(fail("User not found.", "NOT_FOUND"), {
-          status: 404,
-        });
-      }
-
-      if (user.role === "SUPER_ADMIN") {
-        return NextResponse.json(
-          fail("Super Admin cannot be deleted.", "FORBIDDEN"),
-          { status: 403 }
-        );
-      }
-
-      await prisma.accountingUser.delete({
-        where: { id },
-      });
-
-      return NextResponse.json(ok(null, "User deleted."), { status: 200 });
-    }
-
-    const user = await prisma.user.findUnique({
+    const user = await prisma.accountingUser.findUnique({
       where: { id },
       select: { role: true },
     });
@@ -732,7 +475,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    await prisma.user.delete({
+    await prisma.accountingUser.delete({
       where: { id },
     });
 

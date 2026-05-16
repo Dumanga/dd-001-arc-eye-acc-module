@@ -28,7 +28,7 @@ const accessFieldByKey: Record<AccountingAccessKey, keyof AccountingUser> = {
 
 const getAccountingUserLookup = cache(async () => {
   const cookieStore = await cookies();
-  const token = cookieStore.get(getSessionCookieName("ACCOUNTING"))?.value;
+  const token = cookieStore.get(getSessionCookieName())?.value;
 
   if (!token) {
     return {
