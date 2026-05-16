@@ -21,6 +21,7 @@ import { requireAccountingAccess } from "@/lib/auth/accounting";
 import { loadDashboardData } from "@/lib/accounting/dashboard-data";
 import { fmtMoneyAlways } from "@/lib/accounting/reports-shared";
 import { PendingFormsButton } from "@/components/accounting/pending-forms-button";
+import { POS_ENABLED } from "@/lib/accounting/feature-flags";
 
 const quickActions = [
   {
@@ -67,9 +68,11 @@ export default async function AccountingDashboardPage() {
 
   const summaryCards = [
     {
-      label: "Today Revenue",
-      value: fmtMoneyAlways(data.todayRevenue),
-      detail: "Posted POS + approved invoices today",
+      label: "Revenue · MTD",
+      value: fmtMoneyAlways(data.mtdRevenue),
+      detail: POS_ENABLED
+        ? "POS + approved invoices, this month so far"
+        : "Approved invoices, this month so far",
       icon: CircleDollarSign,
       tint: "bg-[#fff1e6] text-[#ff7101]",
       glow: "#ff7101",
@@ -101,18 +104,22 @@ export default async function AccountingDashboardPage() {
   ];
 
   const pulseCards = [
+    ...(POS_ENABLED
+      ? [
+          {
+            label: "Bills · MTD",
+            value: String(data.mtdBillCount),
+            detail: "POS bills this month",
+            icon: ReceiptText,
+            tint: "bg-[#fff1e6] text-[#ff7101]",
+            glow: "#ff7101",
+          },
+        ]
+      : []),
     {
-      label: "Bills today",
-      value: String(data.todayBillCount),
-      detail: "POS bills posted",
-      icon: ReceiptText,
-      tint: "bg-[#fff1e6] text-[#ff7101]",
-      glow: "#ff7101",
-    },
-    {
-      label: "Invoices today",
-      value: String(data.todayInvoiceCount),
-      detail: "Approved today",
+      label: "Invoices · MTD",
+      value: String(data.mtdInvoiceCount),
+      detail: "Approved this month",
       icon: ClipboardList,
       tint: "bg-[#eaf2ff] text-[#2d6df6]",
       glow: "#2d6df6",
@@ -194,19 +201,23 @@ export default async function AccountingDashboardPage() {
               Dashboard
             </h1>
             <p className="mt-1 text-sm text-[#726a63]">
-              Quick control over billing, suppliers, branches, and POS.
+              {POS_ENABLED
+                ? "Quick control over billing, suppliers, branches, and POS."
+                : "Quick control over billing, suppliers, and branches."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {isSuperAdmin ? <PendingFormsButton /> : null}
-            <Link
-              href="/accounting/admin/pos"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-xl bg-[#ff7a12] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#ea6a08]"
-            >
-              Open POS
-            </Link>
+            {POS_ENABLED ? (
+              <Link
+                href="/accounting/admin/pos"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center rounded-xl bg-[#ff7a12] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#ea6a08]"
+              >
+                Open POS
+              </Link>
+            ) : null}
           </div>
         </div>
       </section>
@@ -286,7 +297,7 @@ export default async function AccountingDashboardPage() {
                 Branch Snapshot
               </h2>
               <p className="mt-1 text-sm text-[#7b736d]">
-                Today’s revenue across active branches.
+                Revenue across active branches, this month so far.
               </p>
             </div>
             <div className="rounded-2xl bg-[#fff3e8] p-2.5 text-[#ff7101]">
@@ -325,10 +336,10 @@ export default async function AccountingDashboardPage() {
                       </span>
                     </div>
                     <p className="mt-3 truncate font-sans text-[1.45rem] font-semibold leading-tight text-[#1f1d1c]">
-                      {fmtMoneyAlways(branch.todayRevenue)}
+                      {fmtMoneyAlways(branch.mtdRevenue)}
                     </p>
                     <p className="mt-1 text-xs leading-4 text-[#7d736d]">
-                      POS + invoices today
+                      POS + invoices, this month
                     </p>
                   </div>
                 ))}

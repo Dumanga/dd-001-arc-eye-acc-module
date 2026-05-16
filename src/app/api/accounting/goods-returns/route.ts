@@ -3,6 +3,7 @@ import { fail, ok } from "@/lib/api/response";
 import { authorizeAccountingAnyAccess } from "@/lib/accounting/option-access";
 import { resolveEffectiveStoreId } from "@/lib/accounting/store-resolution";
 import { getListStoreFilter } from "@/lib/accounting/store-scope";
+import { consumeFormIdInTx } from "@/lib/accounting/form-id-config";
 import { prisma } from "@/lib/db";
 import type { AccountingGoodsReturnReason, Prisma } from "@prisma/client";
 
@@ -196,12 +197,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as CreateBody;
 
-    if (!body.returnNumber?.trim()) {
-      return NextResponse.json(
-        fail("Return number is required.", "VALIDATION_ERROR"),
-        { status: 422 }
-      );
-    }
+    // returnNumber is server-assigned from the form-id sequence.
     if (!body.goodsReceiptId) {
       return NextResponse.json(
         fail("Linked GRN is required.", "VALIDATION_ERROR"),
@@ -330,25 +326,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const existing = await prisma.accountingGoodsReturn.findUnique({
-      where: { returnNumber: body.returnNumber.trim() },
-      select: { id: true },
-    });
-    if (existing) {
-      return NextResponse.json(
-        fail(
-          `Return number "${body.returnNumber}" already exists.`,
-          "DUPLICATE_RETURN"
-        ),
-        { status: 409 }
-      );
-    }
-
-    const created = await prisma.accountingGoodsReturn.create({
+    const grnSupplierId = grn.supplierId!;
+    const created = await prisma.$transaction(async (tx) => {
+      const { formId: returnNumber } = await consumeFormIdInTx(tx, "GRR");
+      return tx.accountingGoodsReturn.create({
       data: {
-        returnNumber: body.returnNumber.trim(),
+        returnNumber,
         goodsReceiptId: grn.id,
-        supplierId: grn.supplierId,
+        supplierId: grnSupplierId,
         storeId: effectiveStoreId,
         returnDate: isoToDate(body.returnDate),
         returnedBy: body.returnedBy?.trim() ?? "",
@@ -379,29 +364,6 @@ export async function POST(request: Request) {
       },
       select: { id: true, returnNumber: true },
     });
-
-    // Increment the GRR form-id next number. The config row may not exist yet
-    // for a fresh install — upsert seeds it from defaults on first save.
-    const current = await prisma.accountingFormIdConfig.findUnique({
-      where: { formType: "GRR" },
-      select: { nextNumber: true },
-    });
-    const baseNext = current?.nextNumber ?? "0001";
-    const nextValue = String(Number(baseNext) + 1).padStart(
-      Math.max(4, baseNext.length),
-      "0"
-    );
-    await prisma.accountingFormIdConfig.upsert({
-      where: { formType: "GRR" },
-      update: { nextNumber: nextValue },
-      create: {
-        formType: "GRR",
-        code: "GR",
-        yearToken: "2026",
-        rangeFrom: "0001",
-        rangeTo: "9999",
-        nextNumber: nextValue,
-      },
     });
 
     return NextResponse.json(

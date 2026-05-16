@@ -18,9 +18,9 @@ export const metadata: Metadata = {
   title: "Bat Repair Ops",
   description: "Operations management for cricket bat repair workflows.",
   icons: {
-    icon: "/assets/icon.png",
-    shortcut: "/assets/icon.png",
-    apple: "/assets/icon.png",
+    icon: "/assets/logo-arceye.png",
+    shortcut: "/assets/logo-arceye.png",
+    apple: "/assets/logo-arceye.png",
   },
 };
 

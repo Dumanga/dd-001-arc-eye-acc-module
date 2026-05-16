@@ -53,6 +53,10 @@ type ValidatedProductInput = NormalizedProductInput & {
   // points to a CURRENT_LIABILITY account (Gift Voucher Liability), not an
   // income account.
   isVoucher: boolean;
+  // True for SERVICE_ITEM products. Service items never sit in inventory —
+  // they hit COGS at GRN time (Dr COGS / Cr AP), so the inventory account
+  // column stays null and no inventory leg is posted.
+  isServiceItem: boolean;
   sharedUomCategoryId: string;
   costPriceValue: Prisma.Decimal | null;
   salesPriceValue: Prisma.Decimal | null;
@@ -245,6 +249,17 @@ function validateProductInput(input: NormalizedProductInput): ValidatedProductIn
     if (!input.incomeAccountId) {
       throw new Error("Gift Voucher Liability account is required.");
     }
+  } else if (itemTypeValue === "SERVICE_ITEM") {
+    // Service items don't sit in inventory (no stock), so the inventory
+    // account is intentionally optional. COGS is still required on the
+    // purchase side — service purchases hit COGS immediately as an
+    // expense (Dr COGS / Cr AP at GRN approval).
+    if (hasPurchaseSide && !input.cogsAccountId) {
+      throw new Error("COGS account is required.");
+    }
+    if (hasSalesSide && !input.incomeAccountId) {
+      throw new Error("Income account is required.");
+    }
   } else {
     if (hasPurchaseSide && !input.inventoryAccountId) {
       throw new Error("Inventory account is required.");
@@ -268,6 +283,7 @@ function validateProductInput(input: NormalizedProductInput): ValidatedProductIn
   // income (= liability) account.
   const isInventoryTracked = itemTypeValue === "INVENTORY_ITEM";
   const isVoucher = itemTypeValue === "VOUCHER";
+  const isServiceItem = itemTypeValue === "SERVICE_ITEM";
 
   // Vouchers always carry a serial number per theory § 7.3 — force-on
   // server-side regardless of what the client sent. The product form
@@ -283,6 +299,7 @@ function validateProductInput(input: NormalizedProductInput): ValidatedProductIn
     hasSalesSide,
     isInventoryTracked,
     isVoucher,
+    isServiceItem,
     serialTrackingEnabled,
     sharedUomCategoryId,
     costPriceValue: parseOptionalPrice(input.costPrice, "Cost price", hasPurchaseSide || isInventoryTracked),
@@ -342,7 +359,9 @@ async function ensureRelationsAvailable(input: ValidatedProductInput) {
       }
     }),
     ensureOptionalLookup(
-      input.hasPurchaseSide || input.isInventoryTracked ? input.inventoryAccountId : "",
+      (input.hasPurchaseSide || input.isInventoryTracked) && !input.isServiceItem
+        ? input.inventoryAccountId
+        : "",
       () =>
         prisma.chartOfAccount.findFirst({
           where: {
@@ -434,6 +453,9 @@ function buildCreateProductData(input: ValidatedProductInput): Prisma.Accounting
   // — which actually points to a current-liability account per theory
   // § 7.3 — and skip COGS/Inventory entirely (cost = 0, no JE 2 leg).
   const persistInventoryAccounts = input.hasPurchaseSide || input.isInventoryTracked;
+  // Service items intentionally skip the inventory account leg — they never
+  // sit in stock, so the column stays null even when there is a purchase side.
+  const persistInventoryAccount = persistInventoryAccounts && !input.isServiceItem;
   const persistIncomeAccount = input.hasSalesSide || input.isInventoryTracked || input.isVoucher;
   return {
     itemType: input.itemTypeValue,
@@ -448,7 +470,7 @@ function buildCreateProductData(input: ValidatedProductInput): Prisma.Accounting
       connect: { id: input.sharedUomCategoryId },
     },
     inventoryAccount:
-      persistInventoryAccounts && input.inventoryAccountId
+      persistInventoryAccount && input.inventoryAccountId
         ? { connect: { id: input.inventoryAccountId } }
         : undefined,
     cogsAccount:
@@ -469,6 +491,9 @@ function buildCreateProductData(input: ValidatedProductInput): Prisma.Accounting
 
 function buildUpdateProductData(input: ValidatedProductInput): Prisma.AccountingProductUpdateInput {
   const persistInventoryAccounts = input.hasPurchaseSide || input.isInventoryTracked;
+  // Service items intentionally skip the inventory account leg — they never
+  // sit in stock, so the column stays null even when there is a purchase side.
+  const persistInventoryAccount = persistInventoryAccounts && !input.isServiceItem;
   const persistIncomeAccount = input.hasSalesSide || input.isInventoryTracked || input.isVoucher;
   return {
     itemType: input.itemTypeValue,
@@ -483,7 +508,7 @@ function buildUpdateProductData(input: ValidatedProductInput): Prisma.Accounting
       connect: { id: input.sharedUomCategoryId },
     },
     inventoryAccount:
-      persistInventoryAccounts && input.inventoryAccountId
+      persistInventoryAccount && input.inventoryAccountId
         ? { connect: { id: input.inventoryAccountId } }
         : { disconnect: true },
     cogsAccount:

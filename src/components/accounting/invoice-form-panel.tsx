@@ -810,7 +810,9 @@ export function InvoiceFormPanel({
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <FieldLabel label="Invoice Number" />
-                <TextInput value={draft.invoiceNumber} onChange={(v) => updateDraft({ invoiceNumber: v })} placeholder="INV-2401" />
+                <div className="min-h-12 w-full rounded-2xl border border-[#dfd4ca] bg-[#f7f1ea] px-4 py-3 text-sm text-[#5f5750]">
+                  {draft.invoiceNumber || "Auto-assigned on save · configured in Settings → Form IDs"}
+                </div>
               </div>
               <div>
                 <FieldLabel label="Customer Ref" />

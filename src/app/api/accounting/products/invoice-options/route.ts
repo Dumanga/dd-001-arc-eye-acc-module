@@ -35,16 +35,28 @@ export async function GET(request: Request) {
     const skip = Math.max(0, Number(searchParams.get("skip") ?? "0"));
     const take = Math.min(50, Math.max(1, Number(searchParams.get("take") ?? String(PAGE_SIZE))));
 
+    // Service items have no inventory leg, so their stockOnHand stays at 0
+    // forever. Without the OR below they'd be filtered out of the invoice
+    // picker even though they're sellable. The `stockOnHand > 0` gate
+    // applies only to INVENTORY_ITEM rows — services, vouchers, and groups
+    // pass through regardless.
     const where = {
       status: "ACTIVE" as const,
       tradeMode: { in: ["SELL", "BOTH"] as ("SELL" | "BOTH")[] },
-      stockOnHand: { gt: 0 },
+      OR: [
+        { itemType: { not: "INVENTORY_ITEM" as const } },
+        { stockOnHand: { gt: 0 } },
+      ],
       ...(query
         ? {
-            OR: [
-              { code: { contains: query } },
-              { salesName: { contains: query } },
-              { purchaseName: { contains: query } },
+            AND: [
+              {
+                OR: [
+                  { code: { contains: query } },
+                  { salesName: { contains: query } },
+                  { purchaseName: { contains: query } },
+                ],
+              },
             ],
           }
         : {}),

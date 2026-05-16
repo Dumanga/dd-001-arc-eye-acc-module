@@ -3,6 +3,7 @@ import { fail, ok } from "@/lib/api/response";
 import { authorizeAccountingAnyAccess } from "@/lib/accounting/option-access";
 import { resolveEffectiveStoreId } from "@/lib/accounting/store-resolution";
 import { getListStoreFilter } from "@/lib/accounting/store-scope";
+import { consumeFormIdInTx } from "@/lib/accounting/form-id-config";
 import { prisma } from "@/lib/db";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -268,17 +269,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check for duplicate PO number
-    const existing = await prisma.accountingPurchaseOrder.findUnique({
-      where: { poNumber: body.poNumber },
-      select: { id: true },
-    });
-    if (existing) {
-      return NextResponse.json(
-        fail(`PO number "${body.poNumber}" already exists.`, "DUPLICATE_PO"),
-        { status: 409 }
-      );
-    }
+    // PO number is server-assigned from the form-id sequence inside the
+    // create transaction (see below). User input is ignored to keep the
+    // sequence authoritative.
 
     // Fetch supplier with their tax codes (for snapshot on PO header)
     const supplier = await prisma.accountingSupplier.findUnique({
@@ -322,9 +315,11 @@ export async function POST(request: Request) {
     const tax1Amount = applyTax(afterDiscount, tax1);
     const tax2Amount = applyTax(afterDiscount + tax1Amount, tax2);
 
-    const po = await prisma.accountingPurchaseOrder.create({
+    const po = await prisma.$transaction(async (tx) => {
+      const { formId: poNumber } = await consumeFormIdInTx(tx, "PO");
+      return tx.accountingPurchaseOrder.create({
       data: {
-        poNumber: body.poNumber,
+        poNumber,
         supplierId: body.supplierId,
         storeId: effectiveStoreId,
         supplierRef: body.supplierRef ?? "",
@@ -361,26 +356,6 @@ export async function POST(request: Request) {
       },
       select: { id: true, poNumber: true },
     });
-
-    // Increment next number in FormIdConfig for PO type
-    await prisma.accountingFormIdConfig.updateMany({
-      where: { formType: "PO" },
-      data: {
-        nextNumber: {
-          // Simple string increment — read current and bump by 1
-          // We do this in a separate query to avoid race conditions in single-user scenarios
-          set: String(
-            Number(
-              (
-                await prisma.accountingFormIdConfig.findUnique({
-                  where: { formType: "PO" },
-                  select: { nextNumber: true },
-                })
-              )?.nextNumber ?? "1"
-            ) + 1
-          ).padStart(4, "0"),
-        },
-      },
     });
 
     return NextResponse.json(

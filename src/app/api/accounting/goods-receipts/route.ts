@@ -3,6 +3,7 @@ import { fail, ok } from "@/lib/api/response";
 import { authorizeAccountingAnyAccess } from "@/lib/accounting/option-access";
 import { resolveEffectiveStoreId } from "@/lib/accounting/store-resolution";
 import { getListStoreFilter } from "@/lib/accounting/store-scope";
+import { consumeFormIdInTx } from "@/lib/accounting/form-id-config";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 
@@ -228,13 +229,8 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as CreateGrnBody;
 
-    if (!body.grnNumber?.trim()) {
-      return NextResponse.json(
-        fail("GRN number is required.", "VALIDATION_ERROR"),
-        { status: 422 }
-      );
-    }
-
+    // grnNumber is server-assigned from the form-id sequence inside the
+    // create transaction. User input is ignored.
     const isOpeningBalance = Boolean(body.openingBalanceMode);
 
     // Opening balance and Linked-PO are mutually exclusive — a PO link implies
@@ -338,17 +334,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const existing = await prisma.accountingGoodsReceipt.findUnique({
-      where: { grnNumber: body.grnNumber.trim() },
-      select: { id: true },
-    });
-    if (existing) {
-      return NextResponse.json(
-        fail(`GRN number "${body.grnNumber}" already exists.`, "DUPLICATE_GRN"),
-        { status: 409 }
-      );
-    }
-
     // Validate PO ↔ supplier consistency when in withPo mode
     if (body.mode === "withPo" && body.purchaseOrderId) {
       const po = await prisma.accountingPurchaseOrder.findUnique({
@@ -375,9 +360,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const created = await prisma.accountingGoodsReceipt.create({
+    const created = await prisma.$transaction(async (tx) => {
+      const { formId: grnNumber } = await consumeFormIdInTx(tx, "GRN");
+      return tx.accountingGoodsReceipt.create({
       data: {
-        grnNumber: body.grnNumber.trim(),
+        grnNumber,
         purchaseOrderId: body.mode === "withPo" ? body.purchaseOrderId ?? null : null,
         supplierId: isOpeningBalance ? null : body.supplierId,
         openingBalanceMode: isOpeningBalance,
@@ -424,29 +411,6 @@ export async function POST(request: Request) {
       },
       select: { id: true, grnNumber: true },
     });
-
-    // Increment GRN form-id next number. The config row may not exist yet
-    // for a fresh install — upsert seeds it from defaults on first save.
-    const current = await prisma.accountingFormIdConfig.findUnique({
-      where: { formType: "GRN" },
-      select: { nextNumber: true },
-    });
-    const baseNext = current?.nextNumber ?? "0001";
-    const nextValue = String(Number(baseNext) + 1).padStart(
-      Math.max(4, baseNext.length),
-      "0"
-    );
-    await prisma.accountingFormIdConfig.upsert({
-      where: { formType: "GRN" },
-      update: { nextNumber: nextValue },
-      create: {
-        formType: "GRN",
-        code: "GRN",
-        yearToken: "2026",
-        rangeFrom: "0001",
-        rangeTo: "9999",
-        nextNumber: nextValue,
-      },
     });
 
     return NextResponse.json(

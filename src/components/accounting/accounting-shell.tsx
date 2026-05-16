@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { POS_ENABLED } from "@/lib/accounting/feature-flags";
 
 type AccountingShellUser = {
   displayName: string;
@@ -151,7 +152,7 @@ function buildAccessSummary(user: AccountingShellUser) {
     user.accessInventory ? "Inventory" : null,
     user.accessAccounts ? "Accounts" : null,
     user.accessReports ? "Reports" : null,
-    user.accessPos ? "POS" : null,
+    POS_ENABLED && user.accessPos ? "POS" : null,
     user.accessSettings ? "Settings" : null,
   ].filter(Boolean);
 
@@ -193,7 +194,7 @@ function getDefaultAccountingRoute(user: AccountingShellUser) {
   if (user.accessReports) {
     return "/accounting/admin/reports";
   }
-  if (user.accessPos) {
+  if (POS_ENABLED && user.accessPos) {
     return "/accounting/admin/pos";
   }
   if (user.accessSettings) {
@@ -384,7 +385,7 @@ export function AccountingShell({
               <div className="min-w-0">
                 <p className="font-sans text-lg font-semibold text-[#2a2725]">Accounting Portal</p>
                 <p className="hidden text-sm text-[#7a716a] md:block">
-                  Comfortable finance workspace with a dedicated POS flow.
+                  Comfortable finance workspace for the practice.
                 </p>
               </div>
             </div>
@@ -397,7 +398,7 @@ export function AccountingShell({
               >
                 <Bell className="h-4 w-4" />
               </button>
-              {currentUser.role === "SUPER_ADMIN" || currentUser.accessPos ? (
+              {POS_ENABLED && (currentUser.role === "SUPER_ADMIN" || currentUser.accessPos) ? (
                 <Link
                   href="/accounting/admin/pos"
                   target="_blank"

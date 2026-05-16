@@ -4,6 +4,7 @@ import { fail, ok } from "@/lib/api/response";
 import { authorizeAccountingAnyAccess } from "@/lib/accounting/option-access";
 import { resolveEffectiveStoreId } from "@/lib/accounting/store-resolution";
 import { getListStoreFilter } from "@/lib/accounting/store-scope";
+import { consumeFormIdInTx } from "@/lib/accounting/form-id-config";
 import { prisma } from "@/lib/db";
 
 export type InvoiceListItem = {
@@ -188,9 +189,10 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as CreateInvoiceBody;
 
-    if (!body.invoiceNumber?.trim()) {
-      return NextResponse.json(fail("Invoice number is required.", "VALIDATION_ERROR"), { status: 422 });
-    }
+    // invoiceNumber is intentionally not read from the body — it's
+    // assigned by the form-id config sequence inside the create
+    // transaction. The form panel renders the next preview but cannot
+    // override the assigned number.
     if (!body.customerId) {
       return NextResponse.json(fail("Customer is required.", "VALIDATION_ERROR"), { status: 422 });
     }
@@ -316,17 +318,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const existing = await prisma.accountingInvoice.findUnique({
-      where: { invoiceNumber: body.invoiceNumber.trim() },
-      select: { id: true },
-    });
-    if (existing) {
-      return NextResponse.json(
-        fail(`Invoice number "${body.invoiceNumber}" already exists.`, "DUPLICATE_INV"),
-        { status: 409 }
-      );
-    }
-
     const customer = await prisma.accountingClient.findUnique({
       where: { id: body.customerId },
       select: { id: true },
@@ -369,46 +360,33 @@ export async function POST(request: Request) {
       lineDiscountSum > 0 ? lineDiscountSum : headerDiscountFallback;
     const total = Math.max(0, subtotal - discount);
 
-    const created = await prisma.accountingInvoice.create({
-      data: {
-        invoiceNumber: body.invoiceNumber.trim(),
-        customerId: body.customerId,
-        storeId: effectiveStoreId,
-        status: "DRAFT",
-        currency: body.currency || "LKR",
-        invoiceDate: isoToDate(body.invoiceDate),
-        dueDate: isoToDate(body.dueDate),
-        customerRef: body.customerRef ?? "",
-        billedBy: body.billedBy ?? "",
-        notes: body.notes ?? "",
-        terms: body.terms ?? "",
-        discount,
-        subtotal,
-        total,
-        createdById: currentUser.id,
-        lines: { create: linesData },
-      },
-      select: { id: true, invoiceNumber: true },
-    });
-
-    // Increment INV form-id next number.
-    const current = await prisma.accountingFormIdConfig.findUnique({
-      where: { formType: "INV" },
-      select: { nextNumber: true },
-    });
-    const baseNext = current?.nextNumber ?? "0001";
-    const nextValue = String(Number(baseNext) + 1).padStart(Math.max(4, baseNext.length), "0");
-    await prisma.accountingFormIdConfig.upsert({
-      where: { formType: "INV" },
-      update: { nextNumber: nextValue },
-      create: {
-        formType: "INV",
-        code: "INV",
-        yearToken: "2026",
-        rangeFrom: "0001",
-        rangeTo: "9999",
-        nextNumber: nextValue,
-      },
+    // Atomically: consume the next INV number from the form-id config,
+    // then create the invoice with that number. The form-id row is
+    // locked FOR UPDATE inside the same tx so concurrent callers can't
+    // collide on the same number.
+    const created = await prisma.$transaction(async (tx) => {
+      const { formId: invoiceNumber } = await consumeFormIdInTx(tx, "INV");
+      return tx.accountingInvoice.create({
+        data: {
+          invoiceNumber,
+          customerId: body.customerId,
+          storeId: effectiveStoreId,
+          status: "DRAFT",
+          currency: body.currency || "LKR",
+          invoiceDate: isoToDate(body.invoiceDate),
+          dueDate: isoToDate(body.dueDate),
+          customerRef: body.customerRef ?? "",
+          billedBy: body.billedBy ?? "",
+          notes: body.notes ?? "",
+          terms: body.terms ?? "",
+          discount,
+          subtotal,
+          total,
+          createdById: currentUser.id,
+          lines: { create: linesData },
+        },
+        select: { id: true, invoiceNumber: true },
+      });
     });
 
     return NextResponse.json(

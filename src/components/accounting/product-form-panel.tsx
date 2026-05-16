@@ -1621,6 +1621,10 @@ export function ProductFormPanel({
   // Force the binary toggle to "Yes" and lock it as soon as the operator
   // picks Voucher as the item type.
   const isVoucherItem = form.itemType === "Voucher";
+  // Service items have no inventory leg — they hit COGS at GRN time and have
+  // no stock to carry. The Inventory Account field is hidden + skipped from
+  // validation/payload below.
+  const isServiceItem = form.itemType === "Service Item";
   useEffect(() => {
     if (isVoucherItem && form.serialNumberAvailability !== "Yes") {
       setForm((current) => ({ ...current, serialNumberAvailability: "Yes" }));
@@ -1731,7 +1735,12 @@ export function ProductFormPanel({
           : "Enter the purchase description.",
       costPrice: !hasPurchaseSide ? "" : form.costPrice.trim() ? "" : "Enter the cost price.",
       purchaseUom: !hasPurchaseSide ? "" : form.purchaseUom ? "" : "Select the purchase UOM.",
-      inventoryAccount: !hasPurchaseSide ? "" : form.inventoryAccount ? "" : "Select the inventory account.",
+      inventoryAccount:
+        !hasPurchaseSide || isServiceItem
+          ? ""
+          : form.inventoryAccount
+            ? ""
+            : "Select the inventory account.",
       cogsAccount: !hasPurchaseSide ? "" : form.cogsAccount ? "" : "Select the COGS account.",
       salesName: !hasSalesSide
         ? ""
@@ -1744,7 +1753,7 @@ export function ProductFormPanel({
       salesUom: !hasSalesSide ? "" : form.salesUom ? "" : "Select the sales UOM.",
       incomeAccount: !hasSalesSide ? "" : form.incomeAccount ? "" : "Select the income account.",
     };
-  }, [form, hasPurchaseSide, hasSalesSide, normalizedTradeMode]);
+  }, [form, hasPurchaseSide, hasSalesSide, isServiceItem, normalizedTradeMode]);
 
   function setValue<Key extends keyof ProductFormState>(key: Key, value: ProductFormState[Key]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -1856,7 +1865,7 @@ export function ProductFormPanel({
       purchaseName: hasPurchaseSide ? form.purchaseName.trim() : "",
       costPrice: hasPurchaseSide ? form.costPrice.trim() : "",
       purchaseUomCategoryId: hasPurchaseSide ? selectedPurchaseUomCategory?.id ?? selectedSalesUomCategory?.id ?? "" : "",
-      inventoryAccountId: hasPurchaseSide ? selectedInventoryAccountOption?.id ?? "" : "",
+      inventoryAccountId: hasPurchaseSide && !isServiceItem ? selectedInventoryAccountOption?.id ?? "" : "",
       cogsAccountId: hasPurchaseSide ? selectedCogsAccountOption?.id ?? "" : "",
       preferredSupplierIds: hasPurchaseSide ? selectedPreferredSuppliers.map((supplier) => supplier.id) : [],
       serialNumberAvailability: form.serialNumberAvailability,
@@ -1870,6 +1879,7 @@ export function ProductFormPanel({
       form,
       hasPurchaseSide,
       hasSalesSide,
+      isServiceItem,
       normalizedTradeMode,
       selectedCategoryOption,
       selectedBrandOption,
@@ -2150,26 +2160,28 @@ export function ProductFormPanel({
               ) : null}
               {uomError ? <p className="mt-2 text-xs font-medium text-[#c14d22]">{uomError}</p> : null}
             </div>
-            <div>
-              <FieldLabel label="Inventory Account" required />
-              <AsyncSelectField
-                value={form.inventoryAccount}
-                selectedOption={selectedInventoryAccountOption}
-                onSelect={(option) => {
-                  setSelectedInventoryAccountOption(option);
-                  setValue("inventoryAccount", option.label);
-                  markTouched("inventoryAccount");
-                }}
-                placeholder="Select inventory account"
-                searchPlaceholder="Search current asset accounts"
-                endpoint="/api/accounting/accounts/options"
-                baseParams={{ category: "ASSET", type: "CURRENT_ASSET" }}
-                emptyMessage="No current asset accounts available."
-                emptySearchMessage="No matching current asset accounts."
-                disabled={isViewMode}
-              />
-              {touched.inventoryAccount && errors.inventoryAccount ? <p className="mt-2 text-xs font-medium text-[#c14d22]">{errors.inventoryAccount}</p> : null}
-            </div>
+            {isServiceItem ? null : (
+              <div>
+                <FieldLabel label="Inventory Account" required />
+                <AsyncSelectField
+                  value={form.inventoryAccount}
+                  selectedOption={selectedInventoryAccountOption}
+                  onSelect={(option) => {
+                    setSelectedInventoryAccountOption(option);
+                    setValue("inventoryAccount", option.label);
+                    markTouched("inventoryAccount");
+                  }}
+                  placeholder="Select inventory account"
+                  searchPlaceholder="Search current asset accounts"
+                  endpoint="/api/accounting/accounts/options"
+                  baseParams={{ category: "ASSET", type: "CURRENT_ASSET" }}
+                  emptyMessage="No current asset accounts available."
+                  emptySearchMessage="No matching current asset accounts."
+                  disabled={isViewMode}
+                />
+                {touched.inventoryAccount && errors.inventoryAccount ? <p className="mt-2 text-xs font-medium text-[#c14d22]">{errors.inventoryAccount}</p> : null}
+              </div>
+            )}
             <div>
               <FieldLabel label="COGS Account" required />
               <AsyncSelectField

@@ -3,6 +3,7 @@ import { fail, ok } from "@/lib/api/response";
 import { authorizeAccountingAnyAccess } from "@/lib/accounting/option-access";
 import { resolveEffectiveStoreId } from "@/lib/accounting/store-resolution";
 import { getListStoreFilter } from "@/lib/accounting/store-scope";
+import { consumeFormIdInTx } from "@/lib/accounting/form-id-config";
 import { prisma } from "@/lib/db";
 import type { AccountingGoodsReturnReason, AccountingUser, Prisma } from "@prisma/client";
 
@@ -208,12 +209,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as CreateReturnBody;
 
-    if (!body.returnNumber?.trim()) {
-      return NextResponse.json(
-        fail("Return number is required.", "VALIDATION_ERROR"),
-        { status: 422 },
-      );
-    }
+    // returnNumber is server-assigned from the form-id sequence.
     const sourceType = body.sourceType ?? "INVOICE";
     if (sourceType !== "INVOICE" && sourceType !== "POS_BILL") {
       return NextResponse.json(
@@ -443,20 +439,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const existing = await prisma.accountingCustomerReturn.findUnique({
-      where: { returnNumber: body.returnNumber.trim() },
-      select: { id: true },
-    });
-    if (existing) {
-      return NextResponse.json(
-        fail(`Return number "${body.returnNumber}" already exists.`, "DUPLICATE_RETURN"),
-        { status: 409 },
-      );
-    }
-
-    const created = await prisma.accountingCustomerReturn.create({
+    const created = await prisma.$transaction(async (tx) => {
+      const { formId: returnNumber } = await consumeFormIdInTx(tx, "SR");
+      return tx.accountingCustomerReturn.create({
       data: {
-        returnNumber: body.returnNumber.trim(),
+        returnNumber,
         invoiceId: body.invoiceId,
         customerId: invoice.customerId,
         storeId: effectiveStoreId,
@@ -475,28 +462,6 @@ export async function POST(request: Request) {
       },
       select: { id: true, returnNumber: true },
     });
-
-    // Increment SR form-id next number.
-    const current = await prisma.accountingFormIdConfig.findUnique({
-      where: { formType: "SR" },
-      select: { nextNumber: true },
-    });
-    const baseNext = current?.nextNumber ?? "0001";
-    const nextValue = String(Number(baseNext) + 1).padStart(
-      Math.max(4, baseNext.length),
-      "0",
-    );
-    await prisma.accountingFormIdConfig.upsert({
-      where: { formType: "SR" },
-      update: { nextNumber: nextValue },
-      create: {
-        formType: "SR",
-        code: "SR",
-        yearToken: "2026",
-        rangeFrom: "0001",
-        rangeTo: "9999",
-        nextNumber: nextValue,
-      },
     });
 
     return NextResponse.json(
@@ -758,20 +723,11 @@ async function createReturnFromPosBill(
     );
   }
 
-  const existing = await prisma.accountingCustomerReturn.findUnique({
-    where: { returnNumber: body.returnNumber.trim() },
-    select: { id: true },
-  });
-  if (existing) {
-    return NextResponse.json(
-      fail(`Return number "${body.returnNumber}" already exists.`, "DUPLICATE_RETURN"),
-      { status: 409 },
-    );
-  }
-
-  const created = await prisma.accountingCustomerReturn.create({
+  const created = await prisma.$transaction(async (tx) => {
+    const { formId: returnNumber } = await consumeFormIdInTx(tx, "SR");
+    return tx.accountingCustomerReturn.create({
     data: {
-      returnNumber: body.returnNumber.trim(),
+      returnNumber,
       sourceType: "POS_BILL",
       sourcePosBillId: bill.id,
       // Customer-side: who was the AAR / sub-ledger tagged with on the
@@ -800,29 +756,6 @@ async function createReturnFromPosBill(
     },
     select: { id: true, returnNumber: true },
   });
-
-  // Increment SR form-id next number (shared with invoice returns
-  // per pos-integration-flow.md § 3.11).
-  const current = await prisma.accountingFormIdConfig.findUnique({
-    where: { formType: "SR" },
-    select: { nextNumber: true },
-  });
-  const baseNext = current?.nextNumber ?? "0001";
-  const nextValue = String(Number(baseNext) + 1).padStart(
-    Math.max(4, baseNext.length),
-    "0",
-  );
-  await prisma.accountingFormIdConfig.upsert({
-    where: { formType: "SR" },
-    update: { nextNumber: nextValue },
-    create: {
-      formType: "SR",
-      code: "SR",
-      yearToken: "2026",
-      rangeFrom: "0001",
-      rangeTo: "9999",
-      nextNumber: nextValue,
-    },
   });
 
   return NextResponse.json(

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Loader2, Search, X } from "lucide-react";
+import { POS_ENABLED } from "@/lib/accounting/feature-flags";
 
 type BranchOption = { id: string; name: string; code: string };
 type Role = "SUPER_ADMIN" | "CASHIER" | "DATA_ENTRY" | "SUPERVISOR";
@@ -49,7 +50,7 @@ const roles = [
   { value: "SUPERVISOR", label: "Supervisor" },
 ] as const;
 
-const accessOptions = [
+const ALL_ACCESS_OPTIONS = [
   { key: "dashboard", label: "Dashboard" },
   { key: "suppliers", label: "Suppliers" },
   { key: "customers", label: "Customers" },
@@ -59,6 +60,10 @@ const accessOptions = [
   { key: "pos", label: "POS" },
   { key: "settings", label: "Settings" },
 ] as const;
+
+const accessOptions = ALL_ACCESS_OPTIONS.filter(
+  (opt) => POS_ENABLED || opt.key !== "pos",
+);
 
 const profileImages = [1, 2, 3, 4, 5] as const;
 

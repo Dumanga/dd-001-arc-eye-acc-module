@@ -20,7 +20,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
         status: true,
         storeId: true,
         lines: {
-          select: { productId: true, quantity: true, itemName: true },
+          select: {
+            productId: true,
+            quantity: true,
+            itemName: true,
+            product: { select: { itemType: true } },
+          },
         },
       },
     });
@@ -36,10 +41,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     }
 
     // Pre-flight: verify each line has enough stock at the invoice's branch
-    // before entering the transaction. The atomic check inside the
-    // transaction catches a parallel sale that races us between this read
-    // and the decrement.
+    // before entering the transaction. Service items don't carry stock —
+    // skip the check entirely. The atomic check inside the transaction
+    // catches a parallel sale that races us between this read and the
+    // decrement (also gated on itemType).
     for (const line of invoice.lines) {
+      if (line.product.itemType !== "INVENTORY_ITEM") continue;
       const product = await prisma.accountingProduct.findUnique({
         where: { id: line.productId },
         select: { code: true, salesName: true },
@@ -76,9 +83,11 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
         throw new Error("INV_APPROVAL_STATE_CHANGED");
       }
 
-      // Atomic per-branch decrement. Throws if a parallel sale drained the
-      // branch's stock between the pre-flight read and now.
+      // Atomic per-branch decrement. Service items have no stock — skip.
+      // Throws if a parallel sale drained the branch's stock between the
+      // pre-flight read and now.
       for (const line of invoice.lines) {
+        if (line.product.itemType !== "INVENTORY_ITEM") continue;
         const ok = await consumeProductStock(tx, {
           productId: line.productId,
           storeId: invoice.storeId,

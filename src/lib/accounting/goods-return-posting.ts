@@ -50,7 +50,7 @@ export async function postGoodsReturnApproval(
           unitPrice: true,
           description: true,
           product: {
-            select: { itemType: true, inventoryAccountId: true },
+            select: { itemType: true, inventoryAccountId: true, cogsAccountId: true },
           },
         },
         orderBy: { lineOrder: "asc" },
@@ -78,9 +78,27 @@ export async function postGoodsReturnApproval(
     const lineValue = qty * unitPrice;
     totalValue += lineValue;
 
-    // Service items don't sit in inventory — only inventory items hit the
-    // inventory account. Their value still flows into the supplier-payable
-    // header reduction via the totalValue accumulator.
+    // Service items don't sit in inventory — the GRN debited COGS, so the
+    // return credits COGS (Cr COGS / Dr AP) to reverse the expense.
+    if (line.product.itemType === "SERVICE_ITEM") {
+      if (!line.product.cogsAccountId) {
+        throw new Error(
+          `Goods return ${goodsReturn.returnNumber} has a SERVICE_ITEM line without a COGS account configured`
+        );
+      }
+      glEntries.push({
+        accountId: line.product.cogsAccountId,
+        value: -lineValue,
+        supplierId: goodsReturn.supplierId,
+        productId: line.productId,
+        sourceLineId: line.id,
+        narration: `Service expense reversal — ${line.description || "GRR line"}`,
+      });
+      continue;
+    }
+
+    // Anything else that isn't an inventory item is skipped (no posting
+    // story for group items today).
     if (line.product.itemType !== "INVENTORY_ITEM") continue;
 
     glEntries.push({

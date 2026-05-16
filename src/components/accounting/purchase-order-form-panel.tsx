@@ -672,11 +672,9 @@ export function PurchaseOrderFormPanel({
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <FieldLabel label="PO Number" />
-                <TextInput
-                  value={draft.poNumber}
-                  onChange={(value) => updateDraft({ poNumber: value })}
-                  placeholder="PO-2401"
-                />
+                <div className="min-h-12 w-full rounded-2xl border border-[#dfd4ca] bg-[#f7f1ea] px-4 py-3 text-sm text-[#5f5750]">
+                  {draft.poNumber || "Auto-assigned on save · configured in Settings → Form IDs"}
+                </div>
               </div>
               <div>
                 <FieldLabel label="Supplier Ref" />

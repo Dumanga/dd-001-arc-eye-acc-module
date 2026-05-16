@@ -3,6 +3,7 @@ import { fail, ok } from "@/lib/api/response";
 import { authorizeAccountingAnyAccess } from "@/lib/accounting/option-access";
 import { resolveEffectiveStoreId } from "@/lib/accounting/store-resolution";
 import { getListStoreFilter } from "@/lib/accounting/store-scope";
+import { consumeFormIdInTx } from "@/lib/accounting/form-id-config";
 import { prisma } from "@/lib/db";
 import type { AccountingPaymentMethod, Prisma } from "@prisma/client";
 
@@ -210,12 +211,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as CreateBody;
 
-    if (!body.voucherNumber?.trim()) {
-      return NextResponse.json(
-        fail("Voucher number is required.", "VALIDATION_ERROR"),
-        { status: 422 }
-      );
-    }
+    // voucherNumber is server-assigned from the form-id sequence.
     if (!body.supplierId) {
       return NextResponse.json(
         fail("Supplier is required.", "VALIDATION_ERROR"),
@@ -234,6 +230,7 @@ export async function POST(request: Request) {
         { status: 422 }
       );
     }
+    const method = body.method;
     if (!body.allocations?.length) {
       return NextResponse.json(
         fail("At least one allocation is required.", "VALIDATION_ERROR"),
@@ -267,19 +264,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const existing = await prisma.accountingPaymentVoucher.findUnique({
-      where: { voucherNumber: body.voucherNumber.trim() },
-      select: { id: true },
-    });
-    if (existing) {
-      return NextResponse.json(
-        fail(
-          `Voucher number "${body.voucherNumber}" already exists.`,
-          "DUPLICATE_VOUCHER"
-        ),
-        { status: 409 }
-      );
-    }
 
     // Validate supplier and pay-from account exist
     const [supplier, payFromAccount] = await Promise.all([
@@ -390,14 +374,16 @@ export async function POST(request: Request) {
       }
     }
 
-    const created = await prisma.accountingPaymentVoucher.create({
+    const created = await prisma.$transaction(async (tx) => {
+      const { formId: voucherNumber } = await consumeFormIdInTx(tx, "PV");
+      return tx.accountingPaymentVoucher.create({
       data: {
-        voucherNumber: body.voucherNumber.trim(),
+        voucherNumber,
         supplierId: body.supplierId,
         storeId: effectiveStoreId,
         payFromAccountId: body.payFromAccountId,
         voucherDate: isoToDate(body.voucherDate),
-        method: body.method,
+        method,
         currency: body.currency || "LKR",
         preparedBy: body.preparedBy?.trim() ?? "",
         reference: body.reference?.trim() ?? "",
@@ -424,28 +410,6 @@ export async function POST(request: Request) {
       },
       select: { id: true, voucherNumber: true },
     });
-
-    // Increment PV form-id next number
-    const current = await prisma.accountingFormIdConfig.findUnique({
-      where: { formType: "PV" },
-      select: { nextNumber: true },
-    });
-    const baseNext = current?.nextNumber ?? "0001";
-    const nextValue = String(Number(baseNext) + 1).padStart(
-      Math.max(4, baseNext.length),
-      "0"
-    );
-    await prisma.accountingFormIdConfig.upsert({
-      where: { formType: "PV" },
-      update: { nextNumber: nextValue },
-      create: {
-        formType: "PV",
-        code: "PV",
-        yearToken: "2026",
-        rangeFrom: "0001",
-        rangeTo: "9999",
-        nextNumber: nextValue,
-      },
     });
 
     return NextResponse.json(

@@ -3,6 +3,7 @@ import { fail, ok } from "@/lib/api/response";
 import { authorizeAccountingAnyAccess } from "@/lib/accounting/option-access";
 import { resolveEffectiveStoreId } from "@/lib/accounting/store-resolution";
 import { getListStoreFilter } from "@/lib/accounting/store-scope";
+import { consumeFormIdInTx } from "@/lib/accounting/form-id-config";
 import { prisma } from "@/lib/db";
 import type { AccountingPaymentMethod, Prisma } from "@prisma/client";
 
@@ -212,11 +213,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as CreateBody;
 
-    if (!body.receiptNumber?.trim()) {
-      return NextResponse.json(fail("Receipt number is required.", "VALIDATION_ERROR"), {
-        status: 422,
-      });
-    }
+    // receiptNumber is server-assigned from the form-id sequence.
     if (!body.customerId) {
       return NextResponse.json(fail("Customer is required.", "VALIDATION_ERROR"), {
         status: 422,
@@ -233,6 +230,7 @@ export async function POST(request: Request) {
         status: 422,
       });
     }
+    const method = body.method;
     if (!body.allocations?.length) {
       return NextResponse.json(
         fail("At least one allocation is required.", "VALIDATION_ERROR"),
@@ -262,17 +260,6 @@ export async function POST(request: Request) {
           "VALIDATION_ERROR",
         ),
         { status: 422 },
-      );
-    }
-
-    const existing = await prisma.accountingCustomerPaymentReceipt.findUnique({
-      where: { receiptNumber: body.receiptNumber.trim() },
-      select: { id: true },
-    });
-    if (existing) {
-      return NextResponse.json(
-        fail(`Receipt number "${body.receiptNumber}" already exists.`, "DUPLICATE_RECEIPT"),
-        { status: 409 },
       );
     }
 
@@ -459,14 +446,16 @@ export async function POST(request: Request) {
       }
     }
 
-    const created = await prisma.accountingCustomerPaymentReceipt.create({
+    const created = await prisma.$transaction(async (tx) => {
+      const { formId: receiptNumber } = await consumeFormIdInTx(tx, "RC");
+      return tx.accountingCustomerPaymentReceipt.create({
       data: {
-        receiptNumber: body.receiptNumber.trim(),
+        receiptNumber,
         customerId: body.customerId,
         storeId: effectiveStoreId,
         receiveToAccountId: body.receiveToAccountId,
         receiptDate: isoToDate(body.receiptDate),
-        method: body.method,
+        method,
         currency: body.currency || "LKR",
         collectedBy: body.collectedBy?.trim() ?? "",
         reference: body.reference?.trim() ?? "",
@@ -495,28 +484,6 @@ export async function POST(request: Request) {
       },
       select: { id: true, receiptNumber: true },
     });
-
-    // Increment RC form-id next number
-    const current = await prisma.accountingFormIdConfig.findUnique({
-      where: { formType: "RC" },
-      select: { nextNumber: true },
-    });
-    const baseNext = current?.nextNumber ?? "0001";
-    const nextValue = String(Number(baseNext) + 1).padStart(
-      Math.max(4, baseNext.length),
-      "0",
-    );
-    await prisma.accountingFormIdConfig.upsert({
-      where: { formType: "RC" },
-      update: { nextNumber: nextValue },
-      create: {
-        formType: "RC",
-        code: "RC",
-        yearToken: "2026",
-        rangeFrom: "0001",
-        rangeTo: "9999",
-        nextNumber: nextValue,
-      },
     });
 
     return NextResponse.json(

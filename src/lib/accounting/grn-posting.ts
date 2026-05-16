@@ -65,7 +65,7 @@ export async function postGrnApproval(
           discount: true,
           description: true,
           product: {
-            select: { itemType: true, inventoryAccountId: true },
+            select: { itemType: true, inventoryAccountId: true, cogsAccountId: true },
           },
         },
         orderBy: { lineOrder: "asc" },
@@ -93,9 +93,28 @@ export async function postGrnApproval(
     grossTotal += lineGross;
     totalDiscount += lineDiscount;
 
-    // Service items don't sit in inventory, but the spec says one row per GRN
-    // line. We post inventory rows only for inventory items; service-item
-    // values still land in the offset account (AP or Equity) via the total.
+    // Service items don't sit in inventory — they hit COGS immediately at
+    // GRN time (the service has been consumed). This keeps double-entry
+    // balanced: Dr COGS / Cr AP for the service line value.
+    if (line.product.itemType === "SERVICE_ITEM") {
+      if (!line.product.cogsAccountId) {
+        throw new Error(
+          `GRN ${grn.grnNumber} has a SERVICE_ITEM line without a COGS account configured`
+        );
+      }
+      glEntries.push({
+        accountId: line.product.cogsAccountId,
+        value: lineGross,
+        supplierId: grn.supplierId,
+        productId: line.productId,
+        sourceLineId: line.id,
+        narration: `Service expense — ${line.description || "GRN line"}`,
+      });
+      continue;
+    }
+
+    // Anything else that isn't an inventory item (e.g. group items) is
+    // skipped — those don't have a posting story today.
     if (line.product.itemType !== "INVENTORY_ITEM") continue;
 
     glEntries.push({

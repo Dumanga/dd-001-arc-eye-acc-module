@@ -1,22 +1,23 @@
 // Server-side data loader for the accounting dashboard
 // (/accounting/admin). One round trip via Promise.all that returns
-// the four summary cards, the active-branch snapshot, and the four
-// pulse counters. Everything else on the dashboard is static.
+// the four summary cards, the active-branch snapshot, and the pulse
+// counters. Everything else on the dashboard is static.
 //
-// Day boundaries use Asia/Colombo (UTC+5:30, no DST). Outstanding
-// receivable / payable are taken from the customer + supplier
-// ledger tables — those are the authoritative balances and already
-// net invoices, payments, and returns per the integrity invariant
-// in accounting-theories.md § 4.
+// Period: month-to-date in Asia/Colombo (UTC+5:30, no DST).
+// Outstanding receivable / payable are taken from the customer +
+// supplier ledger tables — those are the authoritative balances and
+// already net invoices, payments, and returns per the integrity
+// invariant in accounting-theories.md § 4.
 
 import { prisma } from "@/lib/db";
 
-// SLT is UTC+5:30, no DST. Returns the UTC Date that corresponds
-// to "today 00:00 SLT" — used to bracket `postedAt` / `approvedAt`
-// columns which are stored in UTC.
-function startOfTodaySlt(): Date {
+// SLT is UTC+5:30, no DST. Returns the UTC Date that corresponds to
+// "1st of the current month, 00:00 SLT" — used to bracket `postedAt`
+// / `approvedAt` columns which are stored in UTC.
+function startOfMonthSlt(): Date {
   const sltOffsetMs = 5.5 * 60 * 60 * 1000;
   const sltNow = new Date(Date.now() + sltOffsetMs);
+  sltNow.setUTCDate(1);
   sltNow.setUTCHours(0, 0, 0, 0);
   return new Date(sltNow.getTime() - sltOffsetMs);
 }
@@ -25,18 +26,18 @@ export type DashboardBranch = {
   id: string;
   name: string;
   city: string;
-  todayRevenue: number;
+  mtdRevenue: number;
 };
 
 export type DashboardData = {
-  todayRevenue: number;
+  mtdRevenue: number;
   receivables: number;
   payables: number;
   activeBranchCount: number;
   branches: DashboardBranch[];
   // Pulse counters
-  todayBillCount: number;
-  todayInvoiceCount: number;
+  mtdBillCount: number;
+  mtdInvoiceCount: number;
   openPoCount: number;
   pendingGrnCount: number;
   pendingCustomerReturnCount: number;
@@ -46,18 +47,18 @@ export type DashboardData = {
 };
 
 export async function loadDashboardData(): Promise<DashboardData> {
-  const todayStart = startOfTodaySlt();
+  const monthStart = startOfMonthSlt();
 
   const [
-    posToday,
-    invoicesToday,
+    posMtd,
+    invoicesMtd,
     customerLedgerSum,
     supplierLedgerSum,
     branches,
     posByStore,
     invoiceByStore,
-    todayBillCount,
-    todayInvoiceCount,
+    mtdBillCount,
+    mtdInvoiceCount,
     openPoCount,
     pendingGrnCount,
     pendingCustomerReturnCount,
@@ -65,15 +66,15 @@ export async function loadDashboardData(): Promise<DashboardData> {
     outOfStockCount,
     activeSupplierCount,
   ] = await Promise.all([
-    // Today's POS revenue (across all branches)
+    // Month-to-date POS revenue (across all branches)
     prisma.accountingPosBill.aggregate({
       _sum: { total: true },
-      where: { status: "COMPLETED", postedAt: { gte: todayStart } },
+      where: { status: "COMPLETED", postedAt: { gte: monthStart } },
     }),
-    // Today's invoice revenue (approved today)
+    // Month-to-date invoice revenue (approved this month)
     prisma.accountingInvoice.aggregate({
       _sum: { total: true },
-      where: { status: "APPROVED", approvedAt: { gte: todayStart } },
+      where: { status: "APPROVED", approvedAt: { gte: monthStart } },
     }),
     // Net receivables — signed ledger sum is debit-positive per
     // AccountingCustomerLedgerEntry's integrity invariant.
@@ -88,25 +89,25 @@ export async function loadDashboardData(): Promise<DashboardData> {
       orderBy: { name: "asc" },
       select: { id: true, name: true, city: true },
     }),
-    // Today's POS revenue grouped by store — drives per-branch tiles
+    // Month-to-date POS revenue grouped by store — drives per-branch tiles
     prisma.accountingPosBill.groupBy({
       by: ["storeId"],
       _sum: { total: true },
-      where: { status: "COMPLETED", postedAt: { gte: todayStart } },
+      where: { status: "COMPLETED", postedAt: { gte: monthStart } },
     }),
-    // Today's approved invoices grouped by store — added to per-branch tiles
+    // Month-to-date approved invoices grouped by store — added to per-branch tiles
     prisma.accountingInvoice.groupBy({
       by: ["storeId"],
       _sum: { total: true },
-      where: { status: "APPROVED", approvedAt: { gte: todayStart } },
+      where: { status: "APPROVED", approvedAt: { gte: monthStart } },
     }),
 
     // Pulse counters
     prisma.accountingPosBill.count({
-      where: { status: "COMPLETED", postedAt: { gte: todayStart } },
+      where: { status: "COMPLETED", postedAt: { gte: monthStart } },
     }),
     prisma.accountingInvoice.count({
-      where: { status: "APPROVED", approvedAt: { gte: todayStart } },
+      where: { status: "APPROVED", approvedAt: { gte: monthStart } },
     }),
     prisma.accountingPurchaseOrder.count({
       where: { status: { in: ["DRAFT", "SENT"] } },
@@ -129,9 +130,9 @@ export async function loadDashboardData(): Promise<DashboardData> {
     prisma.accountingSupplier.count(),
   ]);
 
-  const posSum = Number(posToday._sum.total ?? 0);
-  const invSum = Number(invoicesToday._sum.total ?? 0);
-  const todayRevenue = posSum + invSum;
+  const posSum = Number(posMtd._sum.total ?? 0);
+  const invSum = Number(invoicesMtd._sum.total ?? 0);
+  const mtdRevenue = posSum + invSum;
 
   // Customer / supplier ledger sums can dip negative if there are
   // open credits — clamp to zero for the headline card.
@@ -155,17 +156,17 @@ export async function loadDashboardData(): Promise<DashboardData> {
     id: b.id,
     name: b.name,
     city: b.city,
-    todayRevenue: storeRevenue.get(b.id) ?? 0,
+    mtdRevenue: storeRevenue.get(b.id) ?? 0,
   }));
 
   return {
-    todayRevenue,
+    mtdRevenue,
     receivables,
     payables,
     activeBranchCount: branches.length,
     branches: branchData,
-    todayBillCount,
-    todayInvoiceCount,
+    mtdBillCount,
+    mtdInvoiceCount,
     openPoCount,
     pendingGrnCount,
     pendingCustomerReturnCount,

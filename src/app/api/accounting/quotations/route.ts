@@ -4,6 +4,7 @@ import { fail, ok } from "@/lib/api/response";
 import { authorizeAccountingAnyAccess } from "@/lib/accounting/option-access";
 import { resolveEffectiveStoreId } from "@/lib/accounting/store-resolution";
 import { getListStoreFilter } from "@/lib/accounting/store-scope";
+import { consumeFormIdInTx } from "@/lib/accounting/form-id-config";
 import { prisma } from "@/lib/db";
 
 export type QuotationListItem = {
@@ -186,9 +187,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as CreateQuotationBody;
 
-    if (!body.quotationNumber?.trim()) {
-      return NextResponse.json(fail("Quotation number is required.", "VALIDATION_ERROR"), { status: 422 });
-    }
+    // quotationNumber is server-assigned from the form-id sequence.
     if (!body.customerId) {
       return NextResponse.json(fail("Customer is required.", "VALIDATION_ERROR"), { status: 422 });
     }
@@ -234,17 +233,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const existing = await prisma.accountingQuotation.findUnique({
-      where: { quotationNumber: body.quotationNumber.trim() },
-      select: { id: true },
-    });
-    if (existing) {
-      return NextResponse.json(
-        fail(`Quotation number "${body.quotationNumber}" already exists.`, "DUPLICATE_QT"),
-        { status: 409 }
-      );
-    }
-
     const customer = await prisma.accountingClient.findUnique({
       where: { id: body.customerId },
       select: { id: true },
@@ -277,9 +265,11 @@ export async function POST(request: Request) {
     const discount = Math.max(0, decimal(body.discount));
     const total = Math.max(0, subtotal - discount);
 
-    const created = await prisma.accountingQuotation.create({
+    const created = await prisma.$transaction(async (tx) => {
+      const { formId: quotationNumber } = await consumeFormIdInTx(tx, "QT");
+      return tx.accountingQuotation.create({
       data: {
-        quotationNumber: body.quotationNumber.trim(),
+        quotationNumber,
         customerId: body.customerId,
         storeId: effectiveStoreId,
         status: "DRAFT",
@@ -298,25 +288,6 @@ export async function POST(request: Request) {
       },
       select: { id: true, quotationNumber: true },
     });
-
-    // Increment QT form-id next number after successful create.
-    const current = await prisma.accountingFormIdConfig.findUnique({
-      where: { formType: "QT" },
-      select: { nextNumber: true },
-    });
-    const baseNext = current?.nextNumber ?? "0001";
-    const nextValue = String(Number(baseNext) + 1).padStart(Math.max(4, baseNext.length), "0");
-    await prisma.accountingFormIdConfig.upsert({
-      where: { formType: "QT" },
-      update: { nextNumber: nextValue },
-      create: {
-        formType: "QT",
-        code: "QT",
-        yearToken: "2026",
-        rangeFrom: "0001",
-        rangeTo: "9999",
-        nextNumber: nextValue,
-      },
     });
 
     return NextResponse.json(
