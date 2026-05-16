@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ArrowLeft, Download, Loader2, Printer } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SurfaceCard } from "@/components/accounting/accounting-ui";
+import { useStoreInfo, getStoreAddressLines } from "@/lib/accounting/use-store-info";
 import type { PoDetail } from "@/app/api/accounting/purchase-orders/[id]/route";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -94,8 +95,8 @@ function openPrintWindow(poNumber: string) {
       margin: 0 !important;
     }
     /* Remove rounding on printed header and footer bar */
-    body > div > #po-content > div:first-child,
-    body > div > #po-footer-section > div:last-child {
+    body > #po-content > div:first-child,
+    body > #po-footer-section > div {
       border-radius: 0 !important;
     }
     /* Pin notes + footer bar to the bottom of every page */
@@ -150,6 +151,8 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const store = useStoreInfo();
+
   useEffect(() => {
     let cancelled = false;
 
@@ -192,7 +195,7 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
     return (
       <SurfaceCard>
         <div className="flex items-center justify-center gap-3 py-20 text-sm text-[#786f69]">
-          <Loader2 className="h-5 w-5 animate-spin text-[#ff7101]" />
+          <Loader2 className="h-5 w-5 animate-spin text-[#0891a8]" />
           Loading purchase order…
         </div>
       </SurfaceCard>
@@ -209,7 +212,7 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
           <button
             type="button"
             onClick={onBack}
-            className="mt-4 inline-flex h-10 items-center gap-2 rounded-full border border-[#e2d8cf] bg-white px-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#5f5750] transition hover:bg-[#fff7f0]"
+            className="mt-4 inline-flex h-10 items-center gap-2 rounded-full border border-[#cdeef3] bg-white px-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#5f5750] transition hover:bg-[#ecfcff]"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -242,7 +245,7 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 rounded-xl border border-[#e2d8cf] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#fff7f0]"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#ecfcff]"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to purchase orders
@@ -252,7 +255,7 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#e2d8cf] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#fff7f0]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#ecfcff]"
           >
             <Printer className="h-4 w-4" />
             Print
@@ -260,7 +263,7 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#ff7a12] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#ea6a08]"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#0891a8] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0e7490]"
           >
             <Download className="h-4 w-4" />
             Download PDF
@@ -271,17 +274,17 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
       {/* ─── Printable document ─────────────────────────────────────── */}
       <div
         id="po-print-area"
-        className="mx-auto max-w-4xl rounded-3xl border border-[#e2d8cf] bg-white shadow-sm"
+        className="mx-auto max-w-4xl rounded-3xl border border-[#cdeef3] bg-white shadow-sm"
       >
         {/* ── Content wrapper — grows so footer stays at page bottom ── */}
         <div id="po-content">
 
         {/* ── Header ──────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#fff4eb] to-[#fff9f4] px-8 py-5">
+        <div className="flex items-center justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff] px-8 py-5">
           <div className="flex flex-col gap-0.5">
             <Image
-              src="/assets/logo-dob.png"
-              alt="Doctor of Bats"
+              src="/assets/icon.png"
+              alt="Arc Eye"
               width={160}
               height={52}
               className="h-12 w-auto object-contain"
@@ -289,7 +292,7 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
             />
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c47f3a]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#0891a8]">
               Purchase Order
             </p>
             <p className="mt-0.5 text-2xl font-bold text-[#1f1d1c]">{po.poNumber}</p>
@@ -300,7 +303,7 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
         </div>
 
         {/* ── Divider line ────────────────────────────────────────── */}
-        <div className="h-px bg-[#f0ebe5]" />
+        <div className="h-px bg-[#cdeef3]" />
 
         {/* ── Meta grid ───────────────────────────────────────────── */}
         <div className="grid grid-cols-4 gap-4 px-8 py-4">
@@ -328,20 +331,17 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
           />
           <AddressBlock
             title="Deliver To"
-            name="Doctor of Bats — Main Branch"
-            lines={[
-              "Receiving Desk",
-              "Colombo, Sri Lanka",
-            ]}
+            name={store?.name ?? "—"}
+            lines={getStoreAddressLines(store)}
           />
         </div>
 
         {/* ── Line items ──────────────────────────────────────────── */}
         <div className="px-8 pb-2">
-          <div className="overflow-hidden rounded-xl border border-[#ede8e3]">
+          <div className="overflow-hidden rounded-xl border border-[#cdeef3]">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-[#faf6f2]">
+                <tr className="bg-[#e0fafd]">
                   <Th className="w-7 text-center">#</Th>
                   <Th>Product / Description</Th>
                   <Th className="text-right">UOM</Th>
@@ -354,7 +354,7 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
                 {po.lines.map((line, idx) => (
                   <tr
                     key={line.id}
-                    className={idx % 2 === 0 ? "bg-white" : "bg-[#fdfaf7]"}
+                    className="bg-white"
                   >
                     <TdCompact className="text-center font-medium text-[#9a8f85]">
                       {idx + 1}
@@ -393,7 +393,7 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
 
         {/* ── Totals ──────────────────────────────────────────────── */}
         <div className="flex justify-end px-8 pb-4 pt-3">
-          <div className="w-full max-w-[260px] space-y-1.5 rounded-xl border border-[#ede8e3] bg-[#fdfaf7] px-5 py-3">
+          <div className="w-full max-w-[260px] space-y-1.5 rounded-xl border border-[#cdeef3] bg-[#ecfcff] px-5 py-3">
             <TotalRow label="Subtotal" value={formatMoney(po.subtotal, po.currency)} />
             {hasDiscount && (
               <TotalRow
@@ -418,7 +418,7 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
                 ))}
               </>
             )}
-            <div className="my-1 h-px bg-[#ede8e3]" />
+            <div className="my-1 h-px bg-[#cdeef3]" />
             <TotalRow
               label="Grand Total"
               value={formatMoney(po.grandTotal, po.currency)}
@@ -429,7 +429,7 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
 
         {/* ── Notes & Terms — natural flow, below totals ───────────── */}
         {(po.notes || po.terms) && (
-          <div className="mt-6 grid grid-cols-2 gap-4 border-t border-[#f0ebe5] px-8 py-4">
+          <div className="mt-6 grid grid-cols-2 gap-4 border-t border-[#cdeef3] px-8 py-4">
             {po.notes && (
               <div>
                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9a8f85]">
@@ -453,11 +453,11 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
 
         {/* ── Footer bar — fixed to bottom of last page in print ───── */}
         <div id="po-footer-section">
-          <div className="flex items-center justify-between rounded-b-3xl border-t border-[#f0ebe5] bg-[#faf6f2] px-8 py-3">
+          <div className="flex items-center justify-between rounded-b-3xl border-t border-[#cdeef3] bg-[#e0fafd] px-8 py-3">
             <div className="flex items-center gap-3">
               <Image
-                src="/assets/logo-dob-bw.png"
-                alt="Doctor of Bats"
+                src="/assets/icon.png"
+                alt="Arc Eye"
                 width={80}
                 height={28}
                 className="h-7 w-auto object-contain opacity-40"
@@ -500,8 +500,8 @@ function AddressBlock({
   lines: string[];
 }) {
   return (
-    <div className="rounded-2xl border border-[#ede8e3] bg-[#fdfaf7] px-5 py-4">
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#c47f3a]">
+    <div className="rounded-2xl border border-[#cdeef3] bg-[#ecfcff] px-5 py-4">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#0891a8]">
         {title}
       </p>
       <p className="text-sm font-bold text-[#1f1d1c]">{name}</p>
@@ -523,7 +523,7 @@ function Th({
 }) {
   return (
     <th
-      className={`border-b border-[#ede8e3] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9a8f85] ${className}`}
+      className={`border-b border-[#cdeef3] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9a8f85] ${className}`}
     >
       {children}
     </th>
@@ -538,7 +538,7 @@ function TdCompact({
   className?: string;
 }) {
   return (
-    <td className={`border-b border-[#ede8e3] px-3 py-1.5 text-sm last:border-b-0 ${className}`}>
+    <td className={`border-b border-[#cdeef3] px-3 py-1.5 text-sm last:border-b-0 ${className}`}>
       {children}
     </td>
   );
@@ -563,7 +563,7 @@ function TotalRow({
         {label}
       </span>
       <span
-        className={`text-sm ${bold ? "text-lg font-bold text-[#ff7a12]" : `font-medium text-[#3f3b38] ${className}`}`}
+        className={`text-sm ${bold ? "text-lg font-bold text-[#0891a8]" : `font-medium text-[#3f3b38] ${className}`}`}
       >
         {value}
       </span>

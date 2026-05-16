@@ -82,8 +82,8 @@ export function AccountingLoginForm() {
             <div className="flex items-center gap-4">
               <div className="rounded-[18px] border border-[#f2e2d2] bg-[#fff5ea] p-3">
                 <Image
-                  src="/assets/logo-dob.png"
-                  alt="Doctor of Bat logo"
+                  src="/assets/icon.png"
+                  alt="Arc Eye logo"
                   width={48}
                   height={48}
                   className="h-10 w-auto"

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { ArrowLeft, CheckCircle2, Download, Loader2, Printer } from "lucide-react";
 import { SurfaceCard } from "@/components/accounting/accounting-ui";
+import { useStoreInfo, getStoreAddressLines } from "@/lib/accounting/use-store-info";
 import type { QuotationDetail } from "@/app/api/accounting/quotations/[id]/route";
 
 function formatDisplayDate(iso: string): string {
@@ -81,8 +82,8 @@ function openPrintWindow(quotationNumber: string) {
       width: 100% !important;
       margin: 0 !important;
     }
-    body > div > #quotation-content > div:first-child,
-    body > div > #quotation-footer-section > div:last-child {
+    body > #quotation-content > div:first-child,
+    body > #quotation-footer-section > div {
       border-radius: 0 !important;
     }
     #quotation-footer-section {
@@ -132,6 +133,8 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
   const [approving, setApproving] = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
   const [reloadCounter, setReloadCounter] = useState(0);
+
+  const store = useStoreInfo();
 
   useEffect(() => {
     let cancelled = false;
@@ -192,7 +195,7 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
     return (
       <SurfaceCard>
         <div className="flex items-center justify-center gap-3 py-20 text-sm text-[#786f69]">
-          <Loader2 className="h-5 w-5 animate-spin text-[#ff7101]" />
+          <Loader2 className="h-5 w-5 animate-spin text-[#0891a8]" />
           Loading quotation…
         </div>
       </SurfaceCard>
@@ -209,7 +212,7 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
           <button
             type="button"
             onClick={onBack}
-            className="mt-4 inline-flex h-10 items-center gap-2 rounded-full border border-[#e2d8cf] bg-white px-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#5f5750] transition hover:bg-[#fff7f0]"
+            className="mt-4 inline-flex h-10 items-center gap-2 rounded-full border border-[#cdeef3] bg-white px-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#5f5750] transition hover:bg-[#ecfcff]"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -229,7 +232,7 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 rounded-xl border border-[#e2d8cf] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#fff7f0]"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#ecfcff]"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to quotation list
@@ -239,7 +242,7 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#e2d8cf] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#fff7f0]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#ecfcff]"
           >
             <Printer className="h-4 w-4" />
             Print
@@ -247,7 +250,7 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#e2d8cf] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#fff7f0]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#ecfcff]"
           >
             <Download className="h-4 w-4" />
             Download PDF
@@ -257,7 +260,7 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
               type="button"
               onClick={handleApprove}
               disabled={approving}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#ff7a12] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#ea6a08] disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0891a8] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0e7490] disabled:cursor-not-allowed disabled:opacity-70"
             >
               <CheckCircle2 className="h-4 w-4" />
               {approving ? "Approving…" : "Approve"}
@@ -274,14 +277,14 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
 
       <div
         id="quotation-print-area"
-        className="mx-auto max-w-4xl rounded-3xl border border-[#e2d8cf] bg-white shadow-sm"
+        className="mx-auto max-w-4xl rounded-3xl border border-[#cdeef3] bg-white shadow-sm"
       >
         <div id="quotation-content">
-          <div className="flex items-center justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#fff4eb] to-[#fff9f4] px-8 py-5">
+          <div className="flex items-center justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff] px-8 py-5">
             <div className="flex flex-col gap-0.5">
               <Image
-                src="/assets/logo-dob.png"
-                alt="Doctor of Bats"
+                src="/assets/icon.png"
+                alt="Arc Eye"
                 width={160}
                 height={52}
                 className="h-12 w-auto object-contain"
@@ -289,7 +292,7 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
               />
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c47f3a]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#0891a8]">
                 Quotation
               </p>
               <p className="mt-0.5 text-2xl font-bold text-[#1f1d1c]">{quotation.quotationNumber}</p>
@@ -299,7 +302,7 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
             </div>
           </div>
 
-          <div className="h-px bg-[#f0ebe5]" />
+          <div className="h-px bg-[#cdeef3]" />
 
           <div className="grid grid-cols-4 gap-4 px-8 py-4">
             <MetaField label="Quotation Date" value={formatDisplayDate(quotation.quotationDate)} />
@@ -323,16 +326,16 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
             />
             <AddressBlock
               title="From"
-              name="Doctor of Bats — Main Branch"
-              lines={["Sales Desk", "Colombo, Sri Lanka"]}
+              name={store?.name ?? "—"}
+              lines={getStoreAddressLines(store)}
             />
           </div>
 
           <div className="px-8 pb-2">
-            <div className="overflow-hidden rounded-xl border border-[#ede8e3]">
+            <div className="overflow-hidden rounded-xl border border-[#cdeef3]">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-[#faf6f2]">
+                  <tr className="bg-[#e0fafd]">
                     <Th className="w-7 text-center">#</Th>
                     <Th>Product / Description</Th>
                     <Th className="text-right">UOM</Th>
@@ -343,7 +346,7 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
                 </thead>
                 <tbody>
                   {quotation.lines.map((line, idx) => (
-                    <tr key={line.id} className={idx % 2 === 0 ? "bg-white" : "bg-[#fdfaf7]"}>
+                    <tr key={line.id} className="bg-white">
                       <TdCompact className="text-center font-medium text-[#9a8f85]">
                         {idx + 1}
                       </TdCompact>
@@ -380,7 +383,7 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
           </div>
 
           <div className="flex justify-end px-8 pb-4 pt-3">
-            <div className="w-full max-w-[280px] space-y-1.5 rounded-xl border border-[#ede8e3] bg-[#fdfaf7] px-5 py-3">
+            <div className="w-full max-w-[280px] space-y-1.5 rounded-xl border border-[#cdeef3] bg-[#ecfcff] px-5 py-3">
               <TotalRow
                 label="Subtotal"
                 value={formatMoney(subtotalNumber.toFixed(2), quotation.currency)}
@@ -391,13 +394,13 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
                   value={`- ${formatMoney(discountNumber.toFixed(2), quotation.currency)}`}
                 />
               ) : null}
-              <div className="my-1 h-px bg-[#ede8e3]" />
+              <div className="my-1 h-px bg-[#cdeef3]" />
               <TotalRow label="Total" value={formatMoney(quotation.total, quotation.currency)} bold />
             </div>
           </div>
 
           {quotation.terms ? (
-            <div className="mt-2 border-t border-[#f0ebe5] px-8 py-4">
+            <div className="mt-2 border-t border-[#cdeef3] px-8 py-4">
               <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9a8f85]">
                 Terms &amp; Summary
               </p>
@@ -406,7 +409,7 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
           ) : null}
 
           {quotation.notes ? (
-            <div className="border-t border-[#f0ebe5] px-8 py-4">
+            <div className="border-t border-[#cdeef3] px-8 py-4">
               <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9a8f85]">
                 Notes
               </p>
@@ -416,11 +419,11 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
         </div>
 
         <div id="quotation-footer-section">
-          <div className="flex items-center justify-between rounded-b-3xl border-t border-[#f0ebe5] bg-[#faf6f2] px-8 py-3">
+          <div className="flex items-center justify-between rounded-b-3xl border-t border-[#cdeef3] bg-[#e0fafd] px-8 py-3">
             <div className="flex items-center gap-3">
               <Image
-                src="/assets/logo-dob-bw.png"
-                alt="Doctor of Bats"
+                src="/assets/icon.png"
+                alt="Arc Eye"
                 width={80}
                 height={28}
                 className="h-7 w-auto object-contain opacity-40"
@@ -462,8 +465,8 @@ function AddressBlock({
   lines: string[];
 }) {
   return (
-    <div className="rounded-2xl border border-[#ede8e3] bg-[#fdfaf7] px-5 py-4">
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#c47f3a]">
+    <div className="rounded-2xl border border-[#cdeef3] bg-[#ecfcff] px-5 py-4">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#0891a8]">
         {title}
       </p>
       <p className="text-sm font-bold text-[#1f1d1c]">{name}</p>
@@ -479,7 +482,7 @@ function AddressBlock({
 function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <th
-      className={`border-b border-[#ede8e3] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9a8f85] ${className}`}
+      className={`border-b border-[#cdeef3] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9a8f85] ${className}`}
     >
       {children}
     </th>
@@ -488,7 +491,7 @@ function Th({ children, className = "" }: { children: React.ReactNode; className
 
 function TdCompact({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <td className={`border-b border-[#ede8e3] px-3 py-1.5 text-sm last:border-b-0 ${className}`}>
+    <td className={`border-b border-[#cdeef3] px-3 py-1.5 text-sm last:border-b-0 ${className}`}>
       {children}
     </td>
   );
@@ -510,7 +513,7 @@ function TotalRow({
       </span>
       <span
         className={`text-sm tabular-nums ${
-          bold ? "text-lg font-bold text-[#ff7a12]" : "font-medium text-[#3f3b38]"
+          bold ? "text-lg font-bold text-[#0891a8]" : "font-medium text-[#3f3b38]"
         }`}
       >
         {value}

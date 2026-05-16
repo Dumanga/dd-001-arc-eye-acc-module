@@ -281,8 +281,8 @@ function TrackingPageContent() {
           <section className="flex flex-col justify-center gap-6">
             <div className="flex flex-wrap items-center gap-4">
               <img
-                src="/assets/logo-dob.png"
-                alt="Doctor of Bat logo"
+                src="/assets/icon.png"
+                alt="Arc Eye logo"
                 className="h-20 w-auto max-w-full opacity-90 sm:h-24"
               />
               <span className="w-fit rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-white/70">

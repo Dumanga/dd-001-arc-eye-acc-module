@@ -83,8 +83,8 @@ function openPrintWindow() {
       width: 100% !important;
       margin: 0 !important;
     }
-    body > div > #report-content > div:first-child,
-    body > div > #report-footer-section > div:last-child {
+    body > #report-content > div:first-child,
+    body > #report-footer-section > div {
       border-radius: 0 !important;
     }
     #report-footer-section {
@@ -153,7 +153,7 @@ export function StockReportPreview({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 rounded-xl border border-[#e2d8cf] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#fff7f0]"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#ecfcff]"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to stock report
@@ -162,7 +162,7 @@ export function StockReportPreview({
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#e2d8cf] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#fff7f0]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#ecfcff]"
           >
             <Printer className="h-4 w-4" />
             Print
@@ -170,7 +170,7 @@ export function StockReportPreview({
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#e2d8cf] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#fff7f0]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#ecfcff]"
           >
             <Download className="h-4 w-4" />
             Download PDF
@@ -181,15 +181,15 @@ export function StockReportPreview({
       {/* Printable area */}
       <div
         id="stock-report-print-area"
-        className="mx-auto max-w-4xl rounded-3xl border border-[#e2d8cf] bg-white shadow-sm"
+        className="mx-auto max-w-4xl rounded-3xl border border-[#cdeef3] bg-white shadow-sm"
       >
         <div id="report-content">
           {/* Header — same letterhead as invoice/GRN previews, no status badge */}
-          <div className="flex items-center justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#fff4eb] to-[#fff9f4] px-8 py-5">
+          <div className="flex items-center justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff] px-8 py-5">
             <div className="flex flex-col gap-0.5">
               <Image
-                src="/assets/logo-dob.png"
-                alt="Doctor of Bats"
+                src="/assets/icon.png"
+                alt="Arc Eye"
                 width={160}
                 height={52}
                 className="h-12 w-auto object-contain"
@@ -197,7 +197,7 @@ export function StockReportPreview({
               />
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c47f3a]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#0891a8]">
                 Stock Report
               </p>
               <p className="mt-0.5 text-2xl font-bold text-[#1f1d1c]">
@@ -209,7 +209,7 @@ export function StockReportPreview({
             </div>
           </div>
 
-          <div className="h-px bg-[#f0ebe5]" />
+          <div className="h-px bg-[#cdeef3]" />
 
           {/* Meta grid */}
           <div className="grid grid-cols-3 gap-4 px-8 py-4">
@@ -244,10 +244,10 @@ export function StockReportPreview({
 
           {/* Lines */}
           <div className="px-8 pb-2">
-            <div className="overflow-hidden rounded-xl border border-[#ede8e3]">
+            <div className="overflow-hidden rounded-xl border border-[#cdeef3]">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-[#faf6f2]">
+                  <tr className="bg-[#e0fafd]">
                     <Th className="w-7 text-center">#</Th>
                     <Th>Code / Product</Th>
                     <Th className="text-right">Type</Th>
@@ -272,7 +272,7 @@ export function StockReportPreview({
                       return (
                         <tr
                           key={item.id}
-                          className={idx % 2 === 0 ? "bg-white" : "bg-[#fdfaf7]"}
+                          className="bg-white"
                         >
                           <TdCompact className="text-center font-medium text-[#9a8f85]">
                             {idx + 1}
@@ -338,7 +338,7 @@ export function StockReportPreview({
           {/* Totals */}
           {filteredItems.length > 0 ? (
             <div className="flex justify-end px-8 pb-4 pt-3">
-              <div className="w-full max-w-[320px] space-y-1.5 rounded-xl border border-[#ede8e3] bg-[#fdfaf7] px-5 py-3">
+              <div className="w-full max-w-[320px] space-y-1.5 rounded-xl border border-[#cdeef3] bg-[#ecfcff] px-5 py-3">
                 <TotalRow
                   label="Products"
                   value={String(filteredItems.length)}
@@ -349,7 +349,7 @@ export function StockReportPreview({
                     maximumFractionDigits: 4,
                   })}
                 />
-                <div className="my-1 h-px bg-[#ede8e3]" />
+                <div className="my-1 h-px bg-[#cdeef3]" />
                 <TotalRow
                   label="Total Stock Value"
                   value={formatMoney(totals.value.toFixed(2))}
@@ -362,11 +362,11 @@ export function StockReportPreview({
 
         {/* Footer */}
         <div id="report-footer-section">
-          <div className="flex items-center justify-between rounded-b-3xl border-t border-[#f0ebe5] bg-[#faf6f2] px-8 py-3">
+          <div className="flex items-center justify-between rounded-b-3xl border-t border-[#cdeef3] bg-[#e0fafd] px-8 py-3">
             <div className="flex items-center gap-3">
               <Image
-                src="/assets/logo-dob-bw.png"
-                alt="Doctor of Bats"
+                src="/assets/icon.png"
+                alt="Arc Eye"
                 width={80}
                 height={28}
                 className="h-7 w-auto object-contain opacity-40"
@@ -387,7 +387,7 @@ export function StockReportPreview({
 function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <th
-      className={`border-b border-[#ede8e3] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9a8f85] ${className}`}
+      className={`border-b border-[#cdeef3] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9a8f85] ${className}`}
     >
       {children}
     </th>
@@ -406,7 +406,7 @@ function TdCompact({
   return (
     <td
       colSpan={colSpan}
-      className={`border-b border-[#ede8e3] px-3 py-1.5 text-sm last:border-b-0 ${className}`}
+      className={`border-b border-[#cdeef3] px-3 py-1.5 text-sm last:border-b-0 ${className}`}
     >
       {children}
     </td>
@@ -431,7 +431,7 @@ function TotalRow({
       </span>
       <span
         className={`text-sm tabular-nums ${
-          bold ? "text-lg font-bold text-[#ff7a12]" : "font-medium text-[#3f3b38]"
+          bold ? "text-lg font-bold text-[#0891a8]" : "font-medium text-[#3f3b38]"
         }`}
       >
         {value}

@@ -239,7 +239,7 @@ export function renderPosBillReceipt(data: PosReceiptData): string {
     </head>
     <body>
       <div class="receipt">
-        <img class="logo-img" src="/assets/logo-dob-bw.png" alt="Doctor of Bat" />
+        <img class="logo-img" src="/assets/icon.png" alt="Arc Eye" />
         <div class="company-name">DOCTOR OF BAT</div>
         <div class="company-address">
           No 65, Thalawathugoda Road,<br />

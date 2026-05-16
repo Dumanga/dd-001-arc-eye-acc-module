@@ -84,8 +84,8 @@ function openPrintWindow() {
       width: 100% !important;
       margin: 0 !important;
     }
-    body > div > #report-content > div:first-child,
-    body > div > #report-footer-section > div:last-child {
+    body > #report-content > div:first-child,
+    body > #report-footer-section > div {
       border-radius: 0 !important;
     }
     #report-footer-section {
@@ -144,7 +144,7 @@ export function ReportsPreviewShell({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 rounded-xl border border-[#e2d8cf] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#fff7f0]"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#ecfcff]"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to filters
@@ -153,7 +153,7 @@ export function ReportsPreviewShell({
           <button
             type="button"
             onClick={openPrintWindow}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#e2d8cf] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#fff7f0]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#ecfcff]"
           >
             <Printer className="h-4 w-4" />
             Print
@@ -161,7 +161,7 @@ export function ReportsPreviewShell({
           <button
             type="button"
             onClick={openPrintWindow}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#e2d8cf] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#fff7f0]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#ecfcff]"
           >
             <Download className="h-4 w-4" />
             Download PDF
@@ -182,15 +182,15 @@ export function ReportsPreviewShell({
       {/* Printable area */}
       <div
         id="report-print-area"
-        className="mx-auto max-w-4xl rounded-3xl border border-[#e2d8cf] bg-white shadow-sm"
+        className="mx-auto max-w-4xl rounded-3xl border border-[#cdeef3] bg-white shadow-sm"
       >
         <div id="report-content">
           {/* Header — same letterhead as invoice/GRN previews */}
-          <div className="flex items-center justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#fff4eb] to-[#fff9f4] px-8 py-5">
+          <div className="flex items-center justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff] px-8 py-5">
             <div className="flex flex-col gap-0.5">
               <Image
-                src="/assets/logo-dob.png"
-                alt="Doctor of Bats"
+                src="/assets/icon.png"
+                alt="Arc Eye"
                 width={160}
                 height={52}
                 className="h-12 w-auto object-contain"
@@ -198,7 +198,7 @@ export function ReportsPreviewShell({
               />
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c47f3a]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#0891a8]">
                 {report.previewEyebrow}
               </p>
               <p className="mt-0.5 text-2xl font-bold text-[#1f1d1c]">
@@ -210,7 +210,7 @@ export function ReportsPreviewShell({
             </div>
           </div>
 
-          <div className="h-px bg-[#f0ebe5]" />
+          <div className="h-px bg-[#cdeef3]" />
 
           {/* Filter / report meta band */}
           {filterChips.length > 0 ? (
@@ -229,7 +229,7 @@ export function ReportsPreviewShell({
           ) : null}
 
           {reportMeta && reportMeta.length > 0 ? (
-            <div className="border-t border-[#f0ebe5]">
+            <div className="border-t border-[#cdeef3]">
               <div className="grid grid-cols-3 gap-4 px-8 py-3">
                 {reportMeta.map((m) => (
                   <div key={m.label}>
@@ -247,10 +247,10 @@ export function ReportsPreviewShell({
 
           {/* Lines */}
           <div className="px-8 pb-2 pt-2">
-            <div className="overflow-hidden rounded-xl border border-[#ede8e3]">
+            <div className="overflow-hidden rounded-xl border border-[#cdeef3]">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-[#faf6f2]">
+                  <tr className="bg-[#e0fafd]">
                     {columns.map((col, idx) => (
                       <Th
                         key={col + idx}
@@ -288,12 +288,10 @@ export function ReportsPreviewShell({
                       //   normal   — striped alternating background
                       const rowClass =
                         style === "header"
-                          ? "bg-[#fff5ec] font-semibold text-[#7a3f0a]"
+                          ? "bg-[#e0fafd] font-semibold text-[#0891a8]"
                           : style === "subtotal"
-                            ? "border-t border-[#e2d8cf] bg-[#fdfaf7] font-semibold text-[#1f1d1c]"
-                            : rIdx % 2 === 0
-                              ? "bg-white"
-                              : "bg-[#fdfaf7]";
+                            ? "border-t border-[#cdeef3] bg-[#ecfcff] font-semibold text-[#1f1d1c]"
+                            : "bg-white";
                       return (
                         <tr key={rIdx} className={rowClass}>
                           {row.map((cell, cIdx) => (
@@ -322,13 +320,13 @@ export function ReportsPreviewShell({
           {/* Totals */}
           {totals && totals.length > 0 ? (
             <div className="flex justify-end px-8 pb-4 pt-3">
-              <div className="w-full max-w-[360px] space-y-1.5 rounded-xl border border-[#ede8e3] bg-[#fdfaf7] px-5 py-3">
+              <div className="w-full max-w-[360px] space-y-1.5 rounded-xl border border-[#cdeef3] bg-[#ecfcff] px-5 py-3">
                 {totals.map((t, idx) => {
                   const isLastBold = t.bold;
                   return (
                     <React.Fragment key={t.label + idx}>
                       {isLastBold && idx > 0 ? (
-                        <div className="my-1 h-px bg-[#ede8e3]" />
+                        <div className="my-1 h-px bg-[#cdeef3]" />
                       ) : null}
                       <div className="flex items-center justify-between gap-4">
                         <span
@@ -339,7 +337,7 @@ export function ReportsPreviewShell({
                         <span
                           className={`tabular-nums ${
                             isLastBold
-                              ? "text-lg font-bold text-[#ff7a12]"
+                              ? "text-lg font-bold text-[#0891a8]"
                               : "text-sm font-medium text-[#3f3b38]"
                           }`}
                         >
@@ -356,11 +354,11 @@ export function ReportsPreviewShell({
 
         {/* Footer */}
         <div id="report-footer-section">
-          <div className="flex items-center justify-between rounded-b-3xl border-t border-[#f0ebe5] bg-[#faf6f2] px-8 py-3">
+          <div className="flex items-center justify-between rounded-b-3xl border-t border-[#cdeef3] bg-[#e0fafd] px-8 py-3">
             <div className="flex items-center gap-3">
               <Image
-                src="/assets/logo-dob-bw.png"
-                alt="Doctor of Bats"
+                src="/assets/icon.png"
+                alt="Arc Eye"
                 width={80}
                 height={28}
                 className="h-7 w-auto object-contain opacity-40"
@@ -387,7 +385,7 @@ function Th({
 }) {
   return (
     <th
-      className={`border-b border-[#ede8e3] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9a8f85] ${className}`}
+      className={`border-b border-[#cdeef3] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9a8f85] ${className}`}
     >
       {children}
     </th>
@@ -406,7 +404,7 @@ function TdCompact({
   return (
     <td
       colSpan={colSpan}
-      className={`border-b border-[#ede8e3] px-3 py-1.5 text-sm last:border-b-0 ${className}`}
+      className={`border-b border-[#cdeef3] px-3 py-1.5 text-sm last:border-b-0 ${className}`}
     >
       {children}
     </td>

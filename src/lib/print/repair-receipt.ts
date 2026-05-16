@@ -134,7 +134,7 @@ function buildReceiptHtml(data: RepairReceiptData) {
     )}</div>
   `;
   const customerCopyHeader = `
-    <img class="logo-img" src="/assets/logo-dob-bw.png" alt="Doctor of Bat" />
+    <img class="logo-img" src="/assets/icon.png" alt="Arc Eye" />
     <div class="center sub">REPAIR BILL</div>
     <div class="contact">doctorofbat@gmail.com</div>
     <div class="contact">+94 77 718 4814</div>

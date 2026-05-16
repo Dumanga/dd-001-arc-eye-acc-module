@@ -194,7 +194,7 @@ function buildHtml(data: IncomeReportPrintData) {
               <div class="meta-title">Income Report</div>
               <div class="meta-sub">Doctor of Bat Operations</div>
             </div>
-            <img src="/assets/logo-dob-bw.png" alt="Doctor of Bat logo" />
+            <img src="/assets/icon.png" alt="Arc Eye logo" />
           </div>
           <div class="meta-grid">
             <div class="chip">

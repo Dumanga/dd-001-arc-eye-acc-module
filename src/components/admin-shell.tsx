@@ -165,8 +165,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </button>
             <div className="flex items-center">
               <img
-                src="/assets/logo-dob.png"
-                alt="Doctor of Bat logo"
+                src="/assets/icon.png"
+                alt="Arc Eye logo"
                 className="h-16 w-auto opacity-95 sm:h-20"
               />
             </div>
