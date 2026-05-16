@@ -1,0 +1,12 @@
+-- AlterTable: add tax snapshot columns to PO line
+ALTER TABLE `accountingpurchaseorderline`
+  ADD COLUMN `tax1Code` VARCHAR(30) NULL,
+  ADD COLUMN `tax1Name` VARCHAR(100) NULL,
+  ADD COLUMN `tax1Rate` DECIMAL(14, 4) NULL,
+  ADD COLUMN `tax1Method` VARCHAR(20) NULL,
+  ADD COLUMN `tax1Amount` DECIMAL(18, 4) NOT NULL DEFAULT 0,
+  ADD COLUMN `tax2Code` VARCHAR(30) NULL,
+  ADD COLUMN `tax2Name` VARCHAR(100) NULL,
+  ADD COLUMN `tax2Rate` DECIMAL(14, 4) NULL,
+  ADD COLUMN `tax2Method` VARCHAR(20) NULL,
+  ADD COLUMN `tax2Amount` DECIMAL(18, 4) NOT NULL DEFAULT 0;

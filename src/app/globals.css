@@ -1,0 +1,264 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --background: #f3f2ed;
+  --foreground: #1c1f24;
+  --panel: #f9f7f2;
+  --panel-muted: #efece5;
+  --stroke: rgba(32, 41, 59, 0.14);
+  --accent: #0f766e;
+  --accent-soft: rgba(13, 148, 136, 0.12);
+  --text-muted: rgba(30, 41, 59, 0.64);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0b0f14;
+  --foreground: #f8fafc;
+  --panel: #0f141b;
+  --panel-muted: #141b23;
+  --stroke: rgba(148, 163, 184, 0.15);
+  --accent: #34d399;
+  --accent-soft: rgba(16, 185, 129, 0.15);
+  --text-muted: rgba(226, 232, 240, 0.65);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: rise-in 0.5s ease-out both;
+}
+
+@keyframes home-marquee-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes home-marquee-right {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-home-marquee-left {
+  animation: home-marquee-left 24s linear infinite;
+}
+
+.animate-home-marquee-left-slow {
+  animation: home-marquee-left 34s linear infinite;
+}
+
+.animate-home-marquee-right-slow {
+  animation: home-marquee-right 36s linear infinite;
+}
+
+@keyframes accounting-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.animate-accounting-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(226, 220, 212, 0.55) 0%,
+    rgba(248, 244, 239, 0.95) 50%,
+    rgba(226, 220, 212, 0.55) 100%
+  );
+  background-size: 200% 100%;
+  animation: accounting-shimmer 1.3s ease-in-out infinite;
+}
+
+.settings-input {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 16px;
+  border: 1px solid #ddd8d1;
+  background: #ffffff;
+  padding: 0 14px;
+  color: #1f1d1c;
+  font: inherit;
+  outline: none;
+}
+
+.settings-input:focus {
+  border-color: #ff9d60;
+  box-shadow: 0 0 0 3px rgba(255, 113, 1, 0.12);
+}
+
+.settings-textarea {
+  min-height: 96px;
+  padding: 12px 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.accounting-light {
+  color-scheme: light;
+  scrollbar-color: #cfc6bb #f4f1eb;
+}
+
+.accounting-light ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.accounting-light ::-webkit-scrollbar-track {
+  background: #f4f1eb;
+}
+
+.accounting-light ::-webkit-scrollbar-thumb {
+  border: 3px solid #f4f1eb;
+  border-radius: 999px;
+  background: #cfc6bb;
+}
+
+.accounting-light ::-webkit-scrollbar-thumb:hover {
+  background: #b9afa3;
+}
+
+.accounting-sidebar-scroll {
+  scrollbar-color: #4a5064 #232839;
+}
+
+.accounting-sidebar-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.accounting-sidebar-scroll::-webkit-scrollbar-track {
+  background: #232839;
+}
+
+.accounting-sidebar-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid #232839;
+  border-radius: 999px;
+  background: #4a5064;
+}
+
+.accounting-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #5a6177;
+}
+
+.accounting-login-input:-webkit-autofill,
+.accounting-login-input:-webkit-autofill:hover,
+.accounting-login-input:-webkit-autofill:focus,
+.accounting-login-input:-webkit-autofill:active {
+  -webkit-text-fill-color: #231f20;
+  caret-color: #231f20;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* ── Rotating conic-gradient KPI border ──────────────────────────
+   Used by the accounting dashboard summary cards. Each card sets a
+   `--glow` CSS variable inline to control the accent colour. The
+   ::before holds the spinning gradient; ::after covers everything
+   but a 1.5px sliver at the edges, which reads as the border. */
+.glow-border {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #ffffff;
+}
+
+/* Smaller variant for the Accounting Pulse tiles — same trick, just
+   tighter corner radius and thinner inset so the glow sliver reads
+   well at a smaller card size. */
+.glow-border-sm {
+  border-radius: 16px;
+}
+.glow-border-sm::before {
+  animation-duration: 5s;
+}
+.glow-border-sm::after {
+  inset: 1px;
+}
+
+.glow-border::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  left: 50%;
+  width: 250%;
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--glow, #ff7101) 18%, transparent) 0deg,
+    color-mix(in srgb, var(--glow, #ff7101) 18%, transparent) 270deg,
+    var(--glow, #ff7101) 330deg,
+    #ffffff 348deg,
+    color-mix(in srgb, var(--glow, #ff7101) 18%, transparent) 360deg
+  );
+  animation: glow-border-rotate 4s linear infinite;
+}
+
+.glow-border::after {
+  content: "";
+  position: absolute;
+  inset: 1.5px;
+  z-index: 1;
+  background: linear-gradient(180deg, #ffffff 0%, #fcfaf7 100%);
+  border-radius: inherit;
+}
+
+.glow-border > * {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes glow-border-rotate {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-border::before {
+    animation: none;
+  }
+}

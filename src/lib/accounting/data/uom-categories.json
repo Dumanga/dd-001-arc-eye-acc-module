@@ -1,0 +1,50 @@
+[
+  {
+    "code": "AREA",
+    "name": "Area",
+    "baseUnit": "Square Meter",
+    "defaultSmallestAllowedQty": "0.01000",
+    "description": "Surface measurement units used for sheets, covers, and applied materials.",
+    "displayOrder": 0
+  },
+  {
+    "code": "LENGTH",
+    "name": "Length",
+    "baseUnit": "Meter",
+    "defaultSmallestAllowedQty": "0.01000",
+    "description": "Linear measurement units used for raw materials and cut lengths.",
+    "displayOrder": 1
+  },
+  {
+    "code": "TIME",
+    "name": "Time",
+    "baseUnit": "Hour",
+    "defaultSmallestAllowedQty": "0.01000",
+    "description": "Time-based units used for labor, rentals, and service billing.",
+    "displayOrder": 2
+  },
+  {
+    "code": "UNIT",
+    "name": "Unit",
+    "baseUnit": "Unit",
+    "defaultSmallestAllowedQty": "1.00000",
+    "description": "Count-based units used for item quantities and packaged pieces.",
+    "displayOrder": 3
+  },
+  {
+    "code": "VOLUME",
+    "name": "Volume",
+    "baseUnit": "Liter",
+    "defaultSmallestAllowedQty": "0.01000",
+    "description": "Liquid and fill-volume units used in purchase and stock movements.",
+    "displayOrder": 4
+  },
+  {
+    "code": "WEIGHT",
+    "name": "Weight",
+    "baseUnit": "Kilogram",
+    "defaultSmallestAllowedQty": "0.00100",
+    "description": "Mass-based units used for weighted stock and material costing.",
+    "displayOrder": 5
+  }
+]

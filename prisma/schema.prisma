@@ -1,0 +1,2076 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  CASHIER
+  REPAIR_STAFF
+}
+
+enum AccountingUserRole {
+  SUPER_ADMIN
+  CASHIER
+  DATA_ENTRY
+  SUPERVISOR
+}
+
+enum LoyaltyTier {
+  BRONZE
+  SILVER
+  GOLD
+}
+
+enum StoreStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum UserSystem {
+  OPERATION
+  ACCOUNTING
+  BOTH
+}
+
+enum TaxCodeType {
+  SALES
+  PURCHASE
+  BOTH
+}
+
+enum TaxCalculationMethod {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum TaxApplicableOn {
+  GOODS
+  SERVICES
+  BOTH
+}
+
+enum AccountingUomCategoryCode {
+  AREA
+  LENGTH
+  TIME
+  UNIT
+  VOLUME
+  WEIGHT
+}
+
+enum AccountingProductItemType {
+  INVENTORY_ITEM
+  SERVICE_ITEM
+  GROUP_ITEM
+  VOUCHER
+}
+
+enum AccountingProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AccountingProductTradeMode {
+  BUY
+  SELL
+  BOTH
+}
+
+enum AccountingFormType {
+  PO
+  GRN
+  GRR
+  QT
+  INV
+  SR
+  RC
+  POS
+  PV
+  EXP
+  JEV
+  MIN
+}
+
+enum AccountingCustomerReturnStatus {
+  DRAFT
+  APPROVED
+  CANCELLED
+}
+
+enum AccountingRemarkDocType {
+  PURCHASE_ORDER
+  INVOICE
+  QUOTATION
+  GRN
+  GOODS_RETURN
+  SALES_RETURN
+  RECEIPT
+  POS_BILL
+  SUPPLIER_PAYMENT
+  MATERIAL_ISSUE
+}
+
+enum AccountingPoStatus {
+  DRAFT
+  SENT
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum AccountingGrnStatus {
+  DRAFT
+  APPROVED
+  CANCELLED
+}
+
+enum AccountingGrnLineCondition {
+  GOOD
+  DAMAGED
+  SHORT
+  EXCESS
+}
+
+enum AccountingPaymentVoucherStatus {
+  DRAFT
+  APPROVED
+  CANCELLED
+}
+
+enum AccountingCustomerPaymentReceiptStatus {
+  DRAFT
+  APPROVED
+  CANCELLED
+}
+
+enum AccountingGoodsReturnStatus {
+  DRAFT
+  APPROVED
+  CANCELLED
+}
+
+enum AccountingInvoiceStatus {
+  DRAFT
+  APPROVED
+  CANCELLED
+}
+
+enum AccountingQuotationStatus {
+  DRAFT
+  APPROVED
+  CANCELLED
+}
+
+enum AccountingGoodsReturnReason {
+  DAMAGED
+  WRONG_ITEM
+  EXPIRED
+  EXCESS
+  OTHER
+}
+
+enum AccountingPaymentMethod {
+  BANK_TRANSFER
+  CHEQUE
+  CASH
+  ONLINE_TRANSFER
+}
+
+// POS bill lifecycle. Per accounting-theories.md § 7 and
+// pos-integration-flow.md § 4.2 — a single entity with status
+// covering live cart (DRAFT, isHeld=false), held bill (DRAFT,
+// isHeld=true), posted bill (COMPLETED), and abandoned/deleted
+// bill (CANCELLED). No separate Cart table.
+enum AccountingPosBillStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
+// Bill-level summary of how the customer paid. Stored on the bill
+// row for list-view rendering and reporting; the actual
+// payment-row breakdown lives on AccountingPosBillPayment.
+//   CASH    - one cash account, immediate settle
+//   CARD    - one card-merchant cash-equivalent account, immediate settle
+//   MIXED   - two cash/cash-equivalent rows on the bill-payment table
+//   SPLIT   - merchant-deferred (merchantClientId required), no JE 4
+enum AccountingPosBillSummaryMethod {
+  CASH
+  CARD
+  MIXED
+  SPLIT
+}
+
+// Per-row tender method on AccountingPosBillPayment. Mixed bills
+// have two CASH (or CASH+CARD) rows with different cashAccountIds.
+// REDEEM_VOUCHER (theory § 7.4) clears a voucher serial as payment —
+// the row carries `voucherSerialId` and posts a debit to the voucher
+// product's liability account instead of cash.
+enum AccountingPosBillTenderMethod {
+  CASH
+  CARD
+  SPLIT
+  REDEEM_VOUCHER
+}
+
+enum AccountingJournalDocType {
+  GRN
+  GRR
+  PV
+  INV
+  SR
+  RC
+  POS
+  JE
+  IBT
+  EXP
+  JEV
+  MIN
+}
+
+enum AccountingExpenseVoucherStatus {
+  DRAFT
+  APPROVED
+  CANCELLED
+}
+
+enum AccountingJournalVoucherStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+enum AccountingMaterialIssueStatus {
+  DRAFT
+  APPROVED
+  CANCELLED
+}
+
+enum AccountingSystemAccountKey {
+  SUPPLIER_PAYABLE
+  DEBTOR_RECEIVABLE
+  PRODUCTION_INVENTORY
+  CASH_ON_HAND
+  SSCL_TAX_PAYABLE
+  VAT_PAYABLE
+  PRODUCT_INCOME
+  CASH_DISCOUNT_INCOME
+  SALES_DISCOUNT_INCOME
+  COST_OF_GOODS_SOLD
+  SALES_DISCOUNT_EXPENSE
+  CASH_DISCOUNT_EXPENSE
+}
+
+enum RepairStatus {
+  PENDING
+  PROCESSING
+  REPAIR_COMPLETED
+  DELIVERED
+}
+
+enum RepairIntakeType {
+  WALK_IN
+  COURIER
+}
+
+enum SmsStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id              String     @id @default(cuid())
+  username        String     @unique
+  displayName     String
+  passwordHash    String
+  role            UserRole
+  system          UserSystem @default(OPERATION)
+  profileImageId  Int        @default(1)
+  accessDashboard Boolean    @default(false)
+  accessRepairs   Boolean    @default(false)
+  accessClients   Boolean    @default(false)
+  accessBrands    Boolean    @default(false)
+  accessUsers     Boolean    @default(false)
+  accessStores    Boolean    @default(false)
+  accessSms       Boolean    @default(false)
+  accessSettings  Boolean    @default(false)
+  storeId         String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  sessions       Session[]
+  store          Store?        @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  repairsCreated Repair[]
+  repairAudits   RepairAudit[]
+
+  @@index([system])
+  @@index([storeId])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model AccountingUser {
+  id              String             @id @default(cuid())
+  username        String             @unique
+  displayName     String
+  passwordHash    String
+  role            AccountingUserRole
+  profileImageId  Int                @default(1)
+  storeId         String?
+  accessDashboard Boolean            @default(false)
+  accessSuppliers Boolean            @default(false)
+  accessCustomers Boolean            @default(false)
+  accessInventory Boolean            @default(false)
+  accessAccounts  Boolean            @default(false)
+  accessReports   Boolean            @default(false)
+  accessPos       Boolean            @default(false)
+  accessSettings  Boolean            @default(false)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  sessions                        AccountingSession[]
+  store                           Store?                             @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  createdUoms                     AccountingUom[]
+  purchaseOrders                  AccountingPurchaseOrder[]
+  goodsReceipts                   AccountingGoodsReceipt[]           @relation("GoodsReceiptCreatedBy")
+  approvedGrns                    AccountingGoodsReceipt[]           @relation("GoodsReceiptApprovedBy")
+  paymentVouchers                 AccountingPaymentVoucher[]         @relation("PaymentVoucherCreatedBy")
+  approvedPaymentVouchers         AccountingPaymentVoucher[]         @relation("PaymentVoucherApprovedBy")
+  expenseVouchers                 AccountingExpenseVoucher[]         @relation("ExpenseVoucherCreatedBy")
+  approvedExpenseVouchers         AccountingExpenseVoucher[]         @relation("ExpenseVoucherApprovedBy")
+  journalVouchers                 AccountingJournalVoucher[]         @relation("JournalVoucherCreatedBy")
+  postedJournalVouchers           AccountingJournalVoucher[]         @relation("JournalVoucherPostedBy")
+  materialIssues                  AccountingMaterialIssue[]          @relation("MaterialIssueCreatedBy")
+  approvedMaterialIssues          AccountingMaterialIssue[]          @relation("MaterialIssueApprovedBy")
+  goodsReturns                    AccountingGoodsReturn[]            @relation("GoodsReturnCreatedBy")
+  approvedGoodsReturns            AccountingGoodsReturn[]            @relation("GoodsReturnApprovedBy")
+  journalEntries                  AccountingJournalEntry[]
+  supplierLedgerEntries           AccountingSupplierLedgerEntry[]
+  customerLedgerEntries           AccountingCustomerLedgerEntry[]
+  createdClients                  AccountingClient[]                 @relation("AccountingClientCreatedBy")
+  createdQuotations               AccountingQuotation[]              @relation("QuotationCreatedBy")
+  approvedQuotations              AccountingQuotation[]              @relation("QuotationApprovedBy")
+  createdInvoices                 AccountingInvoice[]                @relation("InvoiceCreatedBy")
+  approvedInvoices                AccountingInvoice[]                @relation("InvoiceApprovedBy")
+  createdCustomerPaymentReceipts  AccountingCustomerPaymentReceipt[] @relation("CustomerPaymentReceiptCreatedBy")
+  approvedCustomerPaymentReceipts AccountingCustomerPaymentReceipt[] @relation("CustomerPaymentReceiptApprovedBy")
+  createdCustomerReturns          AccountingCustomerReturn[]         @relation("CustomerReturnCreatedBy")
+  approvedCustomerReturns         AccountingCustomerReturn[]         @relation("CustomerReturnApprovedBy")
+  posBills                        AccountingPosBill[]                @relation("PosBillCashier")
+
+  @@index([storeId])
+  @@map("accountinguser")
+}
+
+model AccountingSession {
+  id               String   @id @default(cuid())
+  tokenHash        String   @unique
+  accountingUserId String
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+
+  accountingUser AccountingUser @relation(fields: [accountingUserId], references: [id], onDelete: Cascade)
+
+  @@map("accountingsession")
+}
+
+model AccountingAccountCategory {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String   @unique
+  description  String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accountTypes  AccountingAccountType[]
+  chartAccounts ChartOfAccount[]
+
+  @@index([displayOrder])
+  @@index([isActive, displayOrder])
+  @@map("accountingaccountcategory")
+}
+
+model AccountingAccountType {
+  id               String   @id @default(cuid())
+  categoryId       String
+  code             String
+  name             String
+  description      String?
+  displayOrder     Int      @default(0)
+  requiresCurrency Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  category        AccountingAccountCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  accountSubtypes AccountingAccountSubtype[]
+  chartAccounts   ChartOfAccount[]
+
+  @@unique([categoryId, code])
+  @@unique([categoryId, name])
+  @@index([categoryId, displayOrder])
+  @@index([isActive, categoryId, displayOrder])
+  @@map("accountingaccounttype")
+}
+
+model AccountingAccountSubtype {
+  id           String   @id @default(cuid())
+  typeId       String
+  code         String
+  name         String
+  description  String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  type          AccountingAccountType @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  chartAccounts ChartOfAccount[]
+
+  @@unique([typeId, code])
+  @@unique([typeId, name])
+  @@index([typeId, displayOrder])
+  @@index([isActive, typeId, displayOrder])
+  @@map("accountingaccountsubtype")
+}
+
+model ChartOfAccount {
+  id           String   @id @default(cuid())
+  categoryId   String
+  typeId       String
+  subtypeId    String
+  code         String   @unique
+  name         String
+  currencyCode String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  category                    AccountingAccountCategory          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  type                        AccountingAccountType              @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  subtype                     AccountingAccountSubtype           @relation(fields: [subtypeId], references: [id], onDelete: Restrict)
+  outputTaxCodes              TaxCode[]                          @relation("OutputTaxAccount")
+  inputTaxCodes               TaxCode[]                          @relation("InputTaxAccount")
+  inventoryProducts           AccountingProduct[]                @relation("ProductInventoryAccount")
+  cogsProducts                AccountingProduct[]                @relation("ProductCogsAccount")
+  incomeProducts              AccountingProduct[]                @relation("ProductIncomeAccount")
+  payFromVouchers             AccountingPaymentVoucher[]         @relation("PaymentVoucherPayFromAccount")
+  receiveToReceipts           AccountingCustomerPaymentReceipt[] @relation("CustomerPaymentReceiveToAccount")
+  journalEntries              AccountingJournalEntry[]
+  systemAccount               AccountingSystemAccount?
+  posBillsAsPrimaryCash       AccountingPosBill[]                @relation("PosBillPrimaryCashAccount")
+  posBillPayments             AccountingPosBillPayment[]         @relation("PosBillPaymentCashAccount")
+  openingBalanceGoodsReceipts AccountingGoodsReceipt[]           @relation("GoodsReceiptOpeningEquityAccount")
+  payFromExpenseVouchers      AccountingExpenseVoucher[]         @relation("ExpenseVoucherPayFromAccount")
+  expenseVoucherLines         AccountingExpenseVoucherLine[]     @relation("ExpenseVoucherLineAccount")
+  journalVoucherLines         AccountingJournalVoucherLine[]     @relation("JournalVoucherLineAccount")
+  materialIssues              AccountingMaterialIssue[]          @relation("MaterialIssueExpenseAccount")
+
+  @@index([categoryId, typeId, subtypeId])
+  @@index([subtypeId, code])
+  @@index([isActive, categoryId])
+  @@map("chartofaccounts")
+}
+
+model TaxCode {
+  id                 String               @id @default(cuid())
+  code               String               @unique
+  name               String
+  taxType            TaxCodeType
+  calculation        TaxCalculationMethod
+  rate               Decimal              @db.Decimal(14, 4)
+  outputTaxAccountId String?
+  inputTaxAccountId  String?
+  applicableOn       TaxApplicableOn
+  effectiveFrom      DateTime
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  outputTaxAccount ChartOfAccount?             @relation("OutputTaxAccount", fields: [outputTaxAccountId], references: [id], onDelete: SetNull)
+  inputTaxAccount  ChartOfAccount?             @relation("InputTaxAccount", fields: [inputTaxAccountId], references: [id], onDelete: SetNull)
+  supplierLinks    AccountingSupplierTaxCode[]
+
+  @@index([taxType, isActive])
+  @@index([effectiveFrom])
+  @@index([outputTaxAccountId])
+  @@index([inputTaxAccountId])
+  @@map("accountingtaxcode")
+}
+
+model AccountingSupplier {
+  id                      String   @id @default(cuid())
+  code                    String   @unique
+  name                    String
+  email                   String
+  primaryPhoneCountryCode String
+  primaryPhoneDialCode    String
+  primaryPhoneLocalNumber String
+  internalNotes           String?  @db.Text
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  contactInfo       AccountingSupplierContactInfo?
+  salesInfo         AccountingSupplierSalesInfo?
+  taxCodes          AccountingSupplierTaxCode[]
+  salesContacts     AccountingSupplierSalesContact[]
+  bankAccounts      AccountingSupplierBankAccount[]
+  preferredProducts AccountingProductPreferredSupplier[]
+  purchaseOrders    AccountingPurchaseOrder[]
+  goodsReceipts     AccountingGoodsReceipt[]
+  goodsReturns      AccountingGoodsReturn[]
+  paymentVouchers   AccountingPaymentVoucher[]
+  journalEntries    AccountingJournalEntry[]
+  ledgerEntries     AccountingSupplierLedgerEntry[]
+
+  @@index([name])
+  @@index([email])
+  @@index([createdAt])
+  @@map("accountingsupplier")
+}
+
+model AccountingSupplierContactInfo {
+  id                        String   @id @default(cuid())
+  supplierId                String   @unique
+  addressLine1              String?
+  addressLine2              String?
+  city                      String?
+  country                   String?
+  postalCode                String?
+  alternatePhoneCountryCode String?
+  alternatePhoneDialCode    String?
+  alternatePhoneLocalNumber String?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  supplier AccountingSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([country, city])
+  @@map("accountingsuppliercontactinfo")
+}
+
+model AccountingSupplierSalesInfo {
+  id           String   @id @default(cuid())
+  supplierId   String   @unique
+  currencyCode String   @default("LKR")
+  tinNumber    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  supplier AccountingSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([currencyCode])
+  @@map("accountingsuppliersalesinfo")
+}
+
+model AccountingSupplierTaxCode {
+  id           String   @id @default(cuid())
+  supplierId   String
+  taxCodeId    String
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  supplier AccountingSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  taxCode  TaxCode            @relation(fields: [taxCodeId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, taxCodeId])
+  @@index([supplierId, displayOrder])
+  @@index([taxCodeId, displayOrder])
+  @@map("accountingsuppliertaxcode")
+}
+
+model AccountingSupplierSalesContact {
+  id               String   @id @default(cuid())
+  supplierId       String
+  name             String
+  email            String
+  designation      String
+  phoneCountryCode String
+  phoneDialCode    String
+  phoneLocalNumber String
+  displayOrder     Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  supplier AccountingSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId, displayOrder])
+  @@index([email])
+  @@map("accountingsuppliersalescontact")
+}
+
+model AccountingSupplierBankAccount {
+  id            String   @id @default(cuid())
+  supplierId    String
+  accountNumber String
+  bankName      String
+  branchName    String
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  supplier AccountingSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId, displayOrder])
+  @@map("accountingsupplierbankaccount")
+}
+
+model AccountingUomCategory {
+  id                        String                    @id @default(cuid())
+  code                      AccountingUomCategoryCode @unique
+  name                      String                    @unique
+  description               String?
+  baseUnitName              String
+  defaultSmallestAllowedQty Decimal                   @db.Decimal(18, 5)
+  displayOrder              Int                       @default(0)
+  isActive                  Boolean                   @default(true)
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+
+  units    AccountingUom[]
+  products AccountingProduct[]
+
+  @@index([displayOrder])
+  @@index([isActive, displayOrder])
+  @@map("accountinguomcategory")
+}
+
+model AccountingUom {
+  id                 String   @id @default(cuid())
+  categoryId         String
+  name               String
+  normalizedName     String
+  ratioToBase        Decimal  @db.Decimal(18, 5)
+  smallestAllowedQty Decimal  @db.Decimal(18, 5)
+  isActive           Boolean  @default(true)
+  isSystem           Boolean  @default(false)
+  isBase             Boolean  @default(false)
+  createdByUserId    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  category      AccountingUomCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdByUser AccountingUser?       @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([categoryId, normalizedName])
+  @@index([categoryId, isActive, name])
+  @@index([categoryId, isBase])
+  @@index([createdByUserId])
+  @@map("accountinguom")
+}
+
+model AccountingItemCategory {
+  id             String   @id @default(cuid())
+  name           String
+  normalizedName String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  products AccountingProduct[]
+
+  @@index([name])
+  @@map("accountingitemcategory")
+}
+
+model AccountingItemBrand {
+  id             String   @id @default(cuid())
+  name           String
+  normalizedName String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  products AccountingProduct[]
+
+  @@index([name])
+  @@map("accountingitembrand")
+}
+
+model AccountingItemModel {
+  id             String   @id @default(cuid())
+  name           String
+  normalizedName String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  products AccountingProduct[]
+
+  @@index([name])
+  @@map("accountingitemmodel")
+}
+
+model AccountingProduct {
+  id                    String                     @id @default(cuid())
+  itemType              AccountingProductItemType
+  tradeMode             AccountingProductTradeMode @default(BOTH)
+  code                  String                     @unique @db.VarChar(30)
+  itemCategoryId        String?
+  itemBrandId           String?
+  itemModelId           String?
+  purchaseName          String?                    @db.VarChar(200)
+  costPrice             Decimal?                   @db.Decimal(18, 4)
+  stockOnHand           Decimal                    @default(0) @db.Decimal(18, 4)
+  uomCategoryId         String
+  inventoryAccountId    String?
+  cogsAccountId         String?
+  serialTrackingEnabled Boolean                    @default(false)
+  status                AccountingProductStatus    @default(ACTIVE)
+  salesName             String?                    @db.VarChar(200)
+  salesPrice            Decimal?                   @db.Decimal(18, 4)
+  incomeAccountId       String?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  itemCategory        AccountingItemCategory?              @relation(fields: [itemCategoryId], references: [id], onDelete: SetNull)
+  itemBrand           AccountingItemBrand?                 @relation(fields: [itemBrandId], references: [id], onDelete: SetNull)
+  itemModel           AccountingItemModel?                 @relation(fields: [itemModelId], references: [id], onDelete: SetNull)
+  uomCategory         AccountingUomCategory                @relation(fields: [uomCategoryId], references: [id], onDelete: Restrict)
+  inventoryAccount    ChartOfAccount?                      @relation("ProductInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
+  cogsAccount         ChartOfAccount?                      @relation("ProductCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
+  incomeAccount       ChartOfAccount?                      @relation("ProductIncomeAccount", fields: [incomeAccountId], references: [id], onDelete: Restrict)
+  preferredSuppliers  AccountingProductPreferredSupplier[]
+  purchaseOrderLines  AccountingPurchaseOrderLine[]
+  goodsReceiptLines   AccountingGoodsReceiptLine[]
+  goodsReturnLines    AccountingGoodsReturnLine[]
+  quotationLines      AccountingQuotationLine[]
+  invoiceLines        AccountingInvoiceLine[]
+  customerReturnLines AccountingCustomerReturnLine[]
+  journalEntries      AccountingJournalEntry[]
+  branchStock         AccountingProductStock[]
+  posBillLines        AccountingPosBillLine[]
+  materialIssueLines  AccountingMaterialIssueLine[]        @relation("MaterialIssueLineProduct")
+
+  @@index([purchaseName])
+  @@index([salesName])
+  @@index([tradeMode, createdAt])
+  @@index([status, createdAt])
+  @@index([itemType, createdAt])
+  @@index([itemCategoryId])
+  @@index([itemBrandId])
+  @@index([itemModelId])
+  @@index([uomCategoryId])
+  @@index([inventoryAccountId])
+  @@index([cogsAccountId])
+  @@index([incomeAccountId])
+  @@map("accountingproduct")
+}
+
+// Per-branch stock-on-hand. One row per (productId, storeId) actually used.
+// This replaces the legacy `accountingproduct.stockOnHand` global counter,
+// which is kept in sync as a fallback during the rollout window and removed
+// in a follow-up. New-critical-update-plan.md Phase 4.
+model AccountingProductStock {
+  id        String   @id @default(cuid())
+  productId String
+  storeId   String
+  qtyOnHand Decimal  @default(0) @db.Decimal(18, 4)
+  updatedAt DateTime @updatedAt
+
+  product AccountingProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store   Store             @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@unique([productId, storeId])
+  @@index([productId])
+  @@index([storeId])
+  @@map("accountingproductstock")
+}
+
+model AccountingPurchaseOrder {
+  id           String             @id @default(cuid())
+  poNumber     String             @unique @db.VarChar(50)
+  supplierId   String
+  storeId      String
+  supplierRef  String             @default("") @db.VarChar(100)
+  buyerCode    String             @default("") @db.VarChar(50)
+  poDate       DateTime           @db.Date
+  expectedDate DateTime           @db.Date
+  currency     String             @default("LKR") @db.VarChar(10)
+  discount     Decimal            @default(0) @db.Decimal(18, 2)
+  tax1Code     String?            @db.VarChar(30)
+  tax1Name     String?            @db.VarChar(100)
+  tax1Rate     Decimal?           @db.Decimal(14, 4)
+  tax1Method   String?            @db.VarChar(20)
+  tax1Amount   Decimal            @default(0) @db.Decimal(18, 4)
+  tax2Code     String?            @db.VarChar(30)
+  tax2Name     String?            @db.VarChar(100)
+  tax2Rate     Decimal?           @db.Decimal(14, 4)
+  tax2Method   String?            @db.VarChar(20)
+  tax2Amount   Decimal            @default(0) @db.Decimal(18, 4)
+  notes        String             @default("") @db.Text
+  terms        String             @default("") @db.Text
+  status       AccountingPoStatus @default(DRAFT)
+  createdById  String
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  supplier      AccountingSupplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  store         Store                         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy     AccountingUser                @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  lines         AccountingPurchaseOrderLine[]
+  goodsReceipts AccountingGoodsReceipt[]
+
+  @@index([supplierId])
+  @@index([storeId])
+  @@index([createdById])
+  @@index([status, createdAt])
+  @@index([poDate])
+  @@index([expectedDate])
+  @@map("accountingpurchaseorder")
+}
+
+model AccountingPurchaseOrderLine {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  productId       String
+  description     String   @default("") @db.VarChar(500)
+  quantity        Decimal  @db.Decimal(18, 4)
+  unitPrice       Decimal  @db.Decimal(18, 4)
+  uomName         String   @default("") @db.VarChar(100)
+  uomBase         String   @default("") @db.VarChar(100)
+  lineOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  purchaseOrder     AccountingPurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product           AccountingProduct            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  goodsReceiptLines AccountingGoodsReceiptLine[]
+
+  @@index([purchaseOrderId, lineOrder])
+  @@index([productId])
+  @@map("accountingpurchaseorderline")
+}
+
+model AccountingGoodsReceipt {
+  id                     String              @id @default(cuid())
+  grnNumber              String              @unique @db.VarChar(50)
+  purchaseOrderId        String?
+  supplierId             String?
+  storeId                String
+  receiptDate            DateTime            @db.Date
+  receivedBy             String              @default("") @db.VarChar(100)
+  deliveryNoteRef        String              @default("") @db.VarChar(100)
+  vehicleRef             String              @default("") @db.VarChar(150)
+  currency               String              @default("LKR") @db.VarChar(10)
+  notes                  String              @default("") @db.Text
+  status                 AccountingGrnStatus @default(DRAFT)
+  openingBalanceMode     Boolean             @default(false)
+  openingEquityAccountId String?
+  createdById            String
+  approvedById           String?
+  approvedAt             DateTime?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+
+  purchaseOrder        AccountingPurchaseOrder?             @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  supplier             AccountingSupplier?                  @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  store                Store                                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  openingEquityAccount ChartOfAccount?                      @relation("GoodsReceiptOpeningEquityAccount", fields: [openingEquityAccountId], references: [id], onDelete: Restrict)
+  createdBy            AccountingUser                       @relation("GoodsReceiptCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy           AccountingUser?                      @relation("GoodsReceiptApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  lines                AccountingGoodsReceiptLine[]
+  paymentAllocations   AccountingPaymentVoucherAllocation[]
+  goodsReturns         AccountingGoodsReturn[]
+
+  @@index([purchaseOrderId])
+  @@index([supplierId])
+  @@index([storeId])
+  @@index([openingEquityAccountId])
+  @@index([createdById])
+  @@index([status, createdAt])
+  @@index([receiptDate])
+  @@map("accountinggoodsreceipt")
+}
+
+model AccountingGoodsReceiptLine {
+  id                  String                     @id @default(cuid())
+  goodsReceiptId      String
+  productId           String
+  purchaseOrderLineId String?
+  description         String                     @default("") @db.VarChar(500)
+  orderedQty          Decimal                    @default(0) @db.Decimal(18, 4)
+  receivedQty         Decimal                    @db.Decimal(18, 4)
+  unitPrice           Decimal                    @db.Decimal(18, 4)
+  discount            Decimal                    @default(0) @db.Decimal(18, 4)
+  uomName             String                     @default("") @db.VarChar(100)
+  uomBase             String                     @default("") @db.VarChar(100)
+  condition           AccountingGrnLineCondition @default(GOOD)
+  requiresSerial      Boolean                    @default(false)
+  lineOrder           Int                        @default(0)
+  createdAt           DateTime                   @default(now())
+
+  goodsReceipt      AccountingGoodsReceipt             @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  product           AccountingProduct                  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  purchaseOrderLine AccountingPurchaseOrderLine?       @relation(fields: [purchaseOrderLineId], references: [id], onDelete: SetNull)
+  serials           AccountingGoodsReceiptLineSerial[]
+  returnLines       AccountingGoodsReturnLine[]
+
+  @@index([goodsReceiptId, lineOrder])
+  @@index([productId])
+  @@index([purchaseOrderLineId])
+  @@map("accountinggoodsreceiptline")
+}
+
+model AccountingGoodsReceiptLineSerial {
+  id                 String   @id @default(cuid())
+  goodsReceiptLineId String
+  serialNumber       String   @db.VarChar(120)
+  position           Int      @default(0)
+  createdAt          DateTime @default(now())
+
+  line                AccountingGoodsReceiptLine @relation(fields: [goodsReceiptLineId], references: [id], onDelete: Cascade)
+  posBillLines        AccountingPosBillLine[]    @relation("PosBillLineVoucherSerial")
+  posBillProductLines AccountingPosBillLine[]    @relation("PosBillLineProductSerial")
+  posBillPayments     AccountingPosBillPayment[] @relation("PosBillPaymentVoucherSerial")
+  invoiceLines        AccountingInvoiceLine[]    @relation("InvoiceLineProductSerial")
+
+  @@index([goodsReceiptLineId, position])
+  @@index([serialNumber])
+  @@map("accountinggoodsreceiptlineserial")
+}
+
+model AccountingPaymentVoucher {
+  id               String                         @id @default(cuid())
+  voucherNumber    String                         @unique @db.VarChar(50)
+  supplierId       String
+  storeId          String
+  payFromAccountId String
+  voucherDate      DateTime                       @db.Date
+  method           AccountingPaymentMethod        @default(BANK_TRANSFER)
+  currency         String                         @default("LKR") @db.VarChar(10)
+  preparedBy       String                         @default("") @db.VarChar(100)
+  reference        String                         @default("") @db.VarChar(150)
+  chequeNo         String                         @default("") @db.VarChar(80)
+  paymentTotal     Decimal                        @default(0) @db.Decimal(18, 4)
+  discountTotal    Decimal                        @default(0) @db.Decimal(18, 4)
+  notes            String                         @default("") @db.Text
+  status           AccountingPaymentVoucherStatus @default(DRAFT)
+  createdById      String
+  approvedById     String?
+  approvedAt       DateTime?
+  createdAt        DateTime                       @default(now())
+  updatedAt        DateTime                       @updatedAt
+
+  supplier       AccountingSupplier                   @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  store          Store                                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  payFromAccount ChartOfAccount                       @relation("PaymentVoucherPayFromAccount", fields: [payFromAccountId], references: [id], onDelete: Restrict)
+  createdBy      AccountingUser                       @relation("PaymentVoucherCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy     AccountingUser?                      @relation("PaymentVoucherApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  allocations    AccountingPaymentVoucherAllocation[]
+
+  @@index([supplierId])
+  @@index([storeId])
+  @@index([payFromAccountId])
+  @@index([createdById])
+  @@index([status, createdAt])
+  @@index([voucherDate])
+  @@map("accountingpaymentvoucher")
+}
+
+model AccountingPaymentVoucherAllocation {
+  id               String    @id @default(cuid())
+  paymentVoucherId String
+  goodsReceiptId   String?
+  grnNumber        String    @default("") @db.VarChar(50)
+  grnDate          DateTime? @db.Date
+  dueDate          DateTime? @db.Date
+  totalAmount      Decimal   @default(0) @db.Decimal(18, 4)
+  payableAmount    Decimal   @default(0) @db.Decimal(18, 4)
+  payingAmount     Decimal   @default(0) @db.Decimal(18, 4)
+  discount         Decimal   @default(0) @db.Decimal(18, 4)
+  notes            String    @default("") @db.VarChar(500)
+  lineOrder        Int       @default(0)
+  createdAt        DateTime  @default(now())
+
+  paymentVoucher AccountingPaymentVoucher @relation(fields: [paymentVoucherId], references: [id], onDelete: Cascade)
+  goodsReceipt   AccountingGoodsReceipt?  @relation(fields: [goodsReceiptId], references: [id], onDelete: SetNull)
+
+  @@index([paymentVoucherId, lineOrder])
+  @@index([goodsReceiptId])
+  @@map("accountingpaymentvoucherallocation")
+}
+
+// Expense Voucher (EXP) — per accounting-theories.md §8. A general-purpose
+// voucher that credits a single cash/bank account and debits one or more
+// arbitrary chart-of-accounts rows. No supplier ledger.
+model AccountingExpenseVoucher {
+  id               String                         @id @default(cuid())
+  voucherNumber    String                         @unique @db.VarChar(50)
+  storeId          String
+  payFromAccountId String
+  voucherDate      DateTime                       @db.Date
+  currency         String                         @default("LKR") @db.VarChar(10)
+  preparedBy       String                         @default("") @db.VarChar(100)
+  reference        String                         @default("") @db.VarChar(150)
+  total            Decimal                        @default(0) @db.Decimal(18, 4)
+  notes            String                         @default("") @db.Text
+  status           AccountingExpenseVoucherStatus @default(DRAFT)
+  createdById      String
+  approvedById     String?
+  approvedAt       DateTime?
+  createdAt        DateTime                       @default(now())
+  updatedAt        DateTime                       @updatedAt
+
+  store          Store                          @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  payFromAccount ChartOfAccount                 @relation("ExpenseVoucherPayFromAccount", fields: [payFromAccountId], references: [id], onDelete: Restrict)
+  createdBy      AccountingUser                 @relation("ExpenseVoucherCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy     AccountingUser?                @relation("ExpenseVoucherApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  lines          AccountingExpenseVoucherLine[]
+
+  @@index([storeId])
+  @@index([payFromAccountId])
+  @@index([createdById])
+  @@index([status, createdAt])
+  @@index([voucherDate])
+  @@map("accountingexpensevoucher")
+}
+
+model AccountingExpenseVoucherLine {
+  id               String   @id @default(cuid())
+  expenseVoucherId String
+  accountId        String
+  amount           Decimal  @default(0) @db.Decimal(18, 4)
+  paymentMethod    String   @default("CASH") @db.VarChar(30)
+  memo             String   @default("") @db.VarChar(500)
+  lineOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  expenseVoucher AccountingExpenseVoucher @relation(fields: [expenseVoucherId], references: [id], onDelete: Cascade)
+  account        ChartOfAccount           @relation("ExpenseVoucherLineAccount", fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([expenseVoucherId, lineOrder])
+  @@index([accountId])
+  @@map("accountingexpensevoucherline")
+}
+
+// Journal Entry Voucher (JEV) — per accounting-theories.md §9. The catch-all
+// manual posting tool: each line picks any account, each line carries
+// either a debit OR a credit amount (not both), and the voucher must
+// balance (∑Dr = ∑Cr) before it can be posted. No sub-ledger.
+model AccountingJournalVoucher {
+  id            String                         @id @default(cuid())
+  voucherNumber String                         @unique @db.VarChar(50)
+  storeId       String
+  entryDate     DateTime                       @db.Date
+  currency      String                         @default("LKR") @db.VarChar(10)
+  description   String                         @default("") @db.VarChar(500)
+  total         Decimal                        @default(0) @db.Decimal(18, 4)
+  notes         String                         @default("") @db.Text
+  status        AccountingJournalVoucherStatus @default(DRAFT)
+  createdById   String
+  postedById    String?
+  postedAt      DateTime?
+  createdAt     DateTime                       @default(now())
+  updatedAt     DateTime                       @updatedAt
+
+  store     Store                          @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy AccountingUser                 @relation("JournalVoucherCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy  AccountingUser?                @relation("JournalVoucherPostedBy", fields: [postedById], references: [id], onDelete: SetNull)
+  lines     AccountingJournalVoucherLine[]
+
+  @@index([storeId])
+  @@index([createdById])
+  @@index([status, createdAt])
+  @@index([entryDate])
+  @@map("accountingjournalvoucher")
+}
+
+model AccountingJournalVoucherLine {
+  id               String   @id @default(cuid())
+  journalVoucherId String
+  accountId        String
+  debitAmount      Decimal  @default(0) @db.Decimal(18, 4)
+  creditAmount     Decimal  @default(0) @db.Decimal(18, 4)
+  memo             String   @default("") @db.VarChar(500)
+  lineOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  journalVoucher AccountingJournalVoucher @relation(fields: [journalVoucherId], references: [id], onDelete: Cascade)
+  account        ChartOfAccount           @relation("JournalVoucherLineAccount", fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([journalVoucherId, lineOrder])
+  @@index([accountId])
+  @@map("accountingjournalvoucherline")
+}
+
+// Material Issue Note (MIN) — per accounting-theories.md §10. Records
+// inventory leaving the warehouse for internal consumption (repairs,
+// maintenance, samples, write-offs). Cost is charged to a header-level
+// expense account; inventory is credited at lifetime weighted-average cost.
+// No supplier/customer ledger involvement.
+model AccountingMaterialIssue {
+  id               String                        @id @default(cuid())
+  issueNumber      String                        @unique @db.VarChar(50)
+  storeId          String
+  expenseAccountId String
+  issueDate        DateTime                      @db.Date
+  currency         String                        @default("LKR") @db.VarChar(10)
+  requestedBy      String                        @default("") @db.VarChar(150)
+  purpose          String                        @default("") @db.VarChar(500)
+  total            Decimal                       @default(0) @db.Decimal(18, 4)
+  notes            String                        @default("") @db.Text
+  status           AccountingMaterialIssueStatus @default(DRAFT)
+  createdById      String
+  approvedById     String?
+  approvedAt       DateTime?
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+
+  store          Store                         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  expenseAccount ChartOfAccount                @relation("MaterialIssueExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  createdBy      AccountingUser                @relation("MaterialIssueCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy     AccountingUser?               @relation("MaterialIssueApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  lines          AccountingMaterialIssueLine[]
+
+  @@index([storeId])
+  @@index([expenseAccountId])
+  @@index([createdById])
+  @@index([status, createdAt])
+  @@index([issueDate])
+  @@map("accountingmaterialissue")
+}
+
+model AccountingMaterialIssueLine {
+  id              String   @id @default(cuid())
+  materialIssueId String
+  productId       String
+  itemCode        String   @db.VarChar(60)
+  itemName        String   @db.VarChar(200)
+  description     String   @default("") @db.VarChar(500)
+  // Quantity issued (qty leaving stock at the branch).
+  quantity        Decimal  @db.Decimal(18, 4)
+  // Snapshotted lifetime weighted-average cost at approval time.
+  // Stored alongside the GL row so we can render the issue note later
+  // without re-computing.
+  unitCost        Decimal  @default(0) @db.Decimal(18, 4)
+  lineValue       Decimal  @default(0) @db.Decimal(18, 4)
+  uomName         String   @default("") @db.VarChar(100)
+  uomBase         String   @default("") @db.VarChar(100)
+  notes           String   @default("") @db.VarChar(500)
+  lineOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  materialIssue AccountingMaterialIssue @relation(fields: [materialIssueId], references: [id], onDelete: Cascade)
+  product       AccountingProduct       @relation("MaterialIssueLineProduct", fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([materialIssueId, lineOrder])
+  @@index([productId])
+  @@map("accountingmaterialissueline")
+}
+
+model AccountingCustomerPaymentReceipt {
+  id                 String                                 @id @default(cuid())
+  receiptNumber      String                                 @unique @db.VarChar(50)
+  customerId         String
+  storeId            String
+  receiveToAccountId String
+  receiptDate        DateTime                               @db.Date
+  method             AccountingPaymentMethod                @default(CASH)
+  currency           String                                 @default("LKR") @db.VarChar(10)
+  collectedBy        String                                 @default("") @db.VarChar(100)
+  reference          String                                 @default("") @db.VarChar(150)
+  chequeNo           String                                 @default("") @db.VarChar(80)
+  receivingTotal     Decimal                                @default(0) @db.Decimal(18, 4)
+  discountTotal      Decimal                                @default(0) @db.Decimal(18, 4)
+  notes              String                                 @default("") @db.Text
+  status             AccountingCustomerPaymentReceiptStatus @default(DRAFT)
+  createdById        String
+  approvedById       String?
+  approvedAt         DateTime?
+  createdAt          DateTime                               @default(now())
+  updatedAt          DateTime                               @updatedAt
+
+  customer         AccountingClient                      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  store            Store                                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  receiveToAccount ChartOfAccount                        @relation("CustomerPaymentReceiveToAccount", fields: [receiveToAccountId], references: [id], onDelete: Restrict)
+  createdBy        AccountingUser                        @relation("CustomerPaymentReceiptCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy       AccountingUser?                       @relation("CustomerPaymentReceiptApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  allocations      AccountingCustomerPaymentAllocation[]
+
+  @@index([customerId])
+  @@index([storeId])
+  @@index([receiveToAccountId])
+  @@index([createdById])
+  @@index([status, createdAt])
+  @@index([receiptDate])
+  @@map("accountingcustomerpaymentreceipt")
+}
+
+model AccountingCustomerPaymentAllocation {
+  id                       String    @id @default(cuid())
+  customerPaymentReceiptId String
+  // Source document being settled. Exactly ONE of invoiceId /
+  // posBillId is set per row.
+  invoiceId                String?
+  posBillId                String?
+  invoiceNumber            String    @default("") @db.VarChar(50)
+  invoiceDate              DateTime? @db.Date
+  totalAmount              Decimal   @default(0) @db.Decimal(18, 4)
+  receivableAmount         Decimal   @default(0) @db.Decimal(18, 4)
+  receivingAmount          Decimal   @default(0) @db.Decimal(18, 4)
+  discount                 Decimal   @default(0) @db.Decimal(18, 4)
+  description              String    @default("") @db.VarChar(500)
+  notes                    String    @default("") @db.VarChar(500)
+  isOnAccount              Boolean   @default(false)
+  lineOrder                Int       @default(0)
+  createdAt                DateTime  @default(now())
+
+  receipt AccountingCustomerPaymentReceipt @relation(fields: [customerPaymentReceiptId], references: [id], onDelete: Cascade)
+  invoice AccountingInvoice?               @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  posBill AccountingPosBill?               @relation("CustomerPaymentAllocationPosBill", fields: [posBillId], references: [id], onDelete: SetNull)
+
+  @@index([customerPaymentReceiptId, lineOrder])
+  @@index([invoiceId])
+  @@index([posBillId])
+  @@map("accountingcustomerpaymentallocation")
+}
+
+// Customer return source-document type. Per theory § 7 Returns,
+// only INVOICE and SPLIT-method POS bills are returnable through
+// this module — Cash/Card/Mixed POS bills are NOT returnable.
+enum AccountingCustomerReturnSourceType {
+  INVOICE
+  POS_BILL
+}
+
+model AccountingCustomerReturn {
+  id              String                             @id @default(cuid())
+  returnNumber    String                             @unique @db.VarChar(50)
+  // Source document discriminator. Existing rows default to INVOICE
+  // via migration. Going forward, POS_BILL returns set sourcePosBillId
+  // and sourcePosBillLineId (on lines) instead of invoiceId.
+  sourceType      AccountingCustomerReturnSourceType @default(INVOICE)
+  invoiceId       String? // null when sourceType = POS_BILL
+  sourcePosBillId String? // set only when sourceType = POS_BILL
+  customerId      String
+  storeId         String
+  returnDate      DateTime                           @db.Date
+  returnedBy      String                             @default("") @db.VarChar(100)
+  reasonHeader    String                             @default("") @db.VarChar(200)
+  currency        String                             @default("LKR") @db.VarChar(10)
+  notes           String                             @default("") @db.Text
+  totalQty        Decimal                            @default(0) @db.Decimal(18, 4)
+  totalGross      Decimal                            @default(0) @db.Decimal(18, 4)
+  totalDiscount   Decimal                            @default(0) @db.Decimal(18, 4)
+  totalNet        Decimal                            @default(0) @db.Decimal(18, 4)
+  status          AccountingCustomerReturnStatus     @default(DRAFT)
+  createdById     String
+  approvedById    String?
+  approvedAt      DateTime?
+  createdAt       DateTime                           @default(now())
+  updatedAt       DateTime                           @updatedAt
+
+  invoice       AccountingInvoice?             @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  sourcePosBill AccountingPosBill?             @relation("CustomerReturnFromPosBill", fields: [sourcePosBillId], references: [id], onDelete: Restrict)
+  customer      AccountingClient               @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  store         Store                          @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy     AccountingUser                 @relation("CustomerReturnCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy    AccountingUser?                @relation("CustomerReturnApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  lines         AccountingCustomerReturnLine[]
+
+  @@index([invoiceId])
+  @@index([sourcePosBillId])
+  @@index([sourceType])
+  @@index([customerId])
+  @@index([storeId])
+  @@index([createdById])
+  @@index([status, createdAt])
+  @@index([returnDate])
+  @@map("accountingcustomerreturn")
+}
+
+model AccountingCustomerReturnLine {
+  id                  String                      @id @default(cuid())
+  customerReturnId    String
+  // For sourceType=INVOICE returns
+  invoiceLineId       String?
+  // For sourceType=POS_BILL returns (SPLIT-method only per theory § 7)
+  sourcePosBillLineId String?
+  productId           String
+  itemCode            String                      @db.VarChar(60)
+  itemName            String                      @db.VarChar(200)
+  description         String                      @default("") @db.VarChar(500)
+  uomName             String                      @default("") @db.VarChar(100)
+  uomBase             String                      @default("") @db.VarChar(100)
+  uomMinQty           Decimal                     @default(1) @db.Decimal(18, 4)
+  originalQty         Decimal                     @db.Decimal(18, 4)
+  unitPrice           Decimal                     @db.Decimal(18, 4)
+  returnQty           Decimal                     @db.Decimal(18, 4)
+  lineGross           Decimal                     @default(0) @db.Decimal(18, 4)
+  lineDiscount        Decimal                     @default(0) @db.Decimal(18, 4)
+  lineNet             Decimal                     @default(0) @db.Decimal(18, 4)
+  reason              AccountingGoodsReturnReason @default(OTHER)
+  notes               String                      @default("") @db.VarChar(500)
+  lineOrder           Int                         @default(0)
+  createdAt           DateTime                    @default(now())
+
+  customerReturn    AccountingCustomerReturn @relation(fields: [customerReturnId], references: [id], onDelete: Cascade)
+  invoiceLine       AccountingInvoiceLine?   @relation(fields: [invoiceLineId], references: [id], onDelete: Restrict)
+  sourcePosBillLine AccountingPosBillLine?   @relation("CustomerReturnFromPosBillLine", fields: [sourcePosBillLineId], references: [id], onDelete: Restrict)
+  product           AccountingProduct        @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([customerReturnId, lineOrder])
+  @@index([invoiceLineId])
+  @@index([sourcePosBillLineId])
+  @@index([productId])
+  @@map("accountingcustomerreturnline")
+}
+
+model AccountingGoodsReturn {
+  id             String                      @id @default(cuid())
+  returnNumber   String                      @unique @db.VarChar(50)
+  goodsReceiptId String
+  supplierId     String
+  storeId        String
+  returnDate     DateTime                    @db.Date
+  returnedBy     String                      @default("") @db.VarChar(100)
+  reasonHeader   String                      @default("") @db.VarChar(200)
+  currency       String                      @default("LKR") @db.VarChar(10)
+  notes          String                      @default("") @db.Text
+  totalQty       Decimal                     @default(0) @db.Decimal(18, 4)
+  totalValue     Decimal                     @default(0) @db.Decimal(18, 4)
+  status         AccountingGoodsReturnStatus @default(DRAFT)
+  createdById    String
+  approvedById   String?
+  approvedAt     DateTime?
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  goodsReceipt AccountingGoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Restrict)
+  supplier     AccountingSupplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  store        Store                       @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy    AccountingUser              @relation("GoodsReturnCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy   AccountingUser?             @relation("GoodsReturnApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  lines        AccountingGoodsReturnLine[]
+
+  @@index([goodsReceiptId])
+  @@index([supplierId])
+  @@index([storeId])
+  @@index([createdById])
+  @@index([status, createdAt])
+  @@index([returnDate])
+  @@map("accountinggoodsreturn")
+}
+
+model AccountingGoodsReturnLine {
+  id                 String                      @id @default(cuid())
+  goodsReturnId      String
+  goodsReceiptLineId String
+  productId          String
+  description        String                      @default("") @db.VarChar(500)
+  receivedQty        Decimal                     @db.Decimal(18, 4)
+  returnQty          Decimal                     @db.Decimal(18, 4)
+  unitPrice          Decimal                     @db.Decimal(18, 4)
+  uomName            String                      @default("") @db.VarChar(100)
+  uomBase            String                      @default("") @db.VarChar(100)
+  reason             AccountingGoodsReturnReason @default(DAMAGED)
+  lineOrder          Int                         @default(0)
+  createdAt          DateTime                    @default(now())
+
+  goodsReturn      AccountingGoodsReturn      @relation(fields: [goodsReturnId], references: [id], onDelete: Cascade)
+  goodsReceiptLine AccountingGoodsReceiptLine @relation(fields: [goodsReceiptLineId], references: [id], onDelete: Restrict)
+  product          AccountingProduct          @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([goodsReturnId, lineOrder])
+  @@index([goodsReceiptLineId])
+  @@index([productId])
+  @@map("accountinggoodsreturnline")
+}
+
+model AccountingJournalEntry {
+  id                   String                   @id @default(cuid())
+  accountId            String
+  accountCode          String                   @db.VarChar(30)
+  accountName          String                   @db.VarChar(200)
+  storeId              String
+  documentType         AccountingJournalDocType
+  documentId           String                   @db.VarChar(100)
+  documentNumber       String                   @db.VarChar(50)
+  documentDate         DateTime                 @db.Date
+  sourceLineId         String?                  @db.VarChar(100)
+  supplierId           String?
+  supplierCode         String?                  @db.VarChar(50)
+  supplierName         String?                  @db.VarChar(200)
+  customerId           String?
+  customerCode         String?                  @db.VarChar(50)
+  customerName         String?                  @db.VarChar(200)
+  productId            String?
+  productCode          String?                  @db.VarChar(60)
+  productName          String?                  @db.VarChar(200)
+  value                Decimal                  @db.Decimal(18, 4)
+  currency             String                   @default("LKR") @db.VarChar(10)
+  narration            String                   @default("") @db.VarChar(500)
+  reversalOfDocumentId String?                  @db.VarChar(100)
+  createdById          String
+  createdAt            DateTime                 @default(now())
+
+  account   ChartOfAccount      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  store     Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  supplier  AccountingSupplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  product   AccountingProduct?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  createdBy AccountingUser      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([accountId, documentDate])
+  @@index([documentType, documentNumber])
+  @@index([documentType, documentId])
+  @@index([supplierId, documentDate])
+  @@index([productId, documentDate])
+  @@index([storeId, documentDate])
+  @@index([storeId, accountId, documentDate])
+  @@map("accountingjournalentry")
+}
+
+model AccountingSupplierLedgerEntry {
+  id                   String                   @id @default(cuid())
+  supplierId           String
+  supplierCode         String                   @db.VarChar(50)
+  supplierName         String                   @db.VarChar(200)
+  storeId              String
+  documentType         AccountingJournalDocType
+  documentId           String                   @db.VarChar(100)
+  documentNumber       String                   @db.VarChar(50)
+  documentDate         DateTime                 @db.Date
+  value                Decimal                  @db.Decimal(18, 4)
+  currency             String                   @default("LKR") @db.VarChar(10)
+  narration            String                   @default("") @db.VarChar(500)
+  reversalOfDocumentId String?                  @db.VarChar(100)
+  createdById          String
+  createdAt            DateTime                 @default(now())
+
+  supplier  AccountingSupplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  store     Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy AccountingUser     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([supplierId, documentDate])
+  @@index([documentType, documentNumber])
+  @@index([documentType, documentId])
+  @@index([storeId, documentDate])
+  @@index([storeId, supplierId, documentDate])
+  @@map("accountingsupplierledgerentry")
+}
+
+// Customer-side mirror of AccountingSupplierLedgerEntry. Per accounting-theories.md
+// § 4 Invoice Approval and § "Integrity Invariant" — for any customer, the sum of
+// rows in this table must equal the sum of DEBTOR_RECEIVABLE GL rows filtered to
+// the same customerId. Used by invoice approval, future customer payment receipt
+// (RC), and future customer return (SR) flows.
+model AccountingCustomerLedgerEntry {
+  id                   String                   @id @default(cuid())
+  customerId           String
+  customerCode         String                   @db.VarChar(50)
+  customerName         String                   @db.VarChar(200)
+  storeId              String
+  documentType         AccountingJournalDocType
+  documentId           String                   @db.VarChar(100)
+  documentNumber       String                   @db.VarChar(50)
+  documentDate         DateTime                 @db.Date
+  value                Decimal                  @db.Decimal(18, 4)
+  currency             String                   @default("LKR") @db.VarChar(10)
+  narration            String                   @default("") @db.VarChar(500)
+  reversalOfDocumentId String?                  @db.VarChar(100)
+  createdById          String
+  createdAt            DateTime                 @default(now())
+
+  customer  AccountingClient @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  store     Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy AccountingUser   @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([customerId, documentDate])
+  @@index([documentType, documentNumber])
+  @@index([documentType, documentId])
+  @@index([storeId, documentDate])
+  @@index([storeId, customerId, documentDate])
+  @@map("accountingcustomerledgerentry")
+}
+
+model AccountingSystemAccount {
+  id        String                     @id @default(cuid())
+  key       AccountingSystemAccountKey @unique
+  accountId String                     @unique
+  updatedAt DateTime                   @updatedAt
+
+  account ChartOfAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@map("accountingsystemaccount")
+}
+
+model AccountingFormIdConfig {
+  id         String             @id @default(cuid())
+  formType   AccountingFormType @unique
+  code       String             @db.VarChar(20)
+  yearToken  String             @default("") @db.VarChar(10)
+  rangeFrom  String             @db.VarChar(10)
+  rangeTo    String             @db.VarChar(10)
+  nextNumber String             @db.VarChar(10)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@map("accountingformidconfig")
+}
+
+model AccountingRemark {
+  id           String                  @id @default(cuid())
+  documentType AccountingRemarkDocType @unique
+  content      String                  @db.Text
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  @@map("accountingremark")
+}
+
+model AccountingProductPreferredSupplier {
+  id           String   @id @default(cuid())
+  productId    String
+  supplierId   String
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  product  AccountingProduct  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier AccountingSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, supplierId])
+  @@index([productId, displayOrder])
+  @@index([supplierId, displayOrder])
+  @@map("accountingproductpreferredsupplier")
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  repairs Repair[]
+
+  @@map("brand")
+}
+
+model Client {
+  id        String      @id @default(cuid())
+  name      String
+  mobile    String      @unique
+  tier      LoyaltyTier @default(BRONZE)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  repairs Repair[]
+
+  @@index([name])
+  @@map("client")
+}
+
+model AccountingClient {
+  id          String      @id @default(cuid())
+  name        String
+  mobile      String      @unique
+  email       String?
+  address     String?     @db.Text
+  currency    String      @default("LKR")
+  tier        LoyaltyTier @default(BRONZE)
+  // POS classification flags. See pos-integration-flow.md § 3.5–3.7 and
+  // accounting-theories.md § 7 Customer Treatment. Mutually exclusive
+  // — a row can be at most one of: walk-in (the single seeded anonymous
+  // POS customer), merchant (Visa / Koko / bank settlement counterparty
+  // for SPLIT bills), or a regular customer (both flags false).
+  isMerchant  Boolean     @default(false)
+  isWalkIn    Boolean     @default(false)
+  createdById String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  createdBy          AccountingUser?                    @relation("AccountingClientCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  quotations         AccountingQuotation[]
+  invoices           AccountingInvoice[]
+  ledgerEntries      AccountingCustomerLedgerEntry[]
+  paymentReceipts    AccountingCustomerPaymentReceipt[]
+  customerReturns    AccountingCustomerReturn[]
+  posBillsAsCustomer AccountingPosBill[]                @relation("PosBillCustomer")
+  posBillsAsMerchant AccountingPosBill[]                @relation("PosBillMerchant")
+  posBillPayments    AccountingPosBillPayment[]         @relation("PosBillPaymentMerchant")
+
+  @@index([name])
+  @@index([currency])
+  @@index([tier])
+  @@index([createdAt])
+  @@index([createdById])
+  @@index([isMerchant])
+  @@index([isWalkIn])
+  @@map("accountingclient")
+}
+
+model Store {
+  id        String      @id @default(cuid())
+  name      String
+  code      String      @unique
+  city      String
+  status    StoreStatus @default(ACTIVE)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  users           User[]
+  accountingUsers AccountingUser[]
+  repairs         Repair[]
+
+  accountingPurchaseOrders          AccountingPurchaseOrder[]
+  accountingGoodsReceipts           AccountingGoodsReceipt[]
+  accountingGoodsReturns            AccountingGoodsReturn[]
+  accountingPaymentVouchers         AccountingPaymentVoucher[]
+  accountingCustomerPaymentReceipts AccountingCustomerPaymentReceipt[]
+  accountingCustomerReturns         AccountingCustomerReturn[]
+  accountingQuotations              AccountingQuotation[]
+  accountingInvoices                AccountingInvoice[]
+  accountingJournalEntries          AccountingJournalEntry[]
+  accountingSupplierLedgerEntries   AccountingSupplierLedgerEntry[]
+  accountingCustomerLedgerEntries   AccountingCustomerLedgerEntry[]
+  accountingProductStock            AccountingProductStock[]
+  accountingPosBills                AccountingPosBill[]
+  accountingExpenseVouchers         AccountingExpenseVoucher[]
+  accountingJournalVouchers         AccountingJournalVoucher[]
+  accountingMaterialIssues          AccountingMaterialIssue[]
+
+  @@index([name])
+  @@index([city])
+  @@index([status])
+  @@map("store")
+}
+
+model Repair {
+  id                    String           @id @default(cuid())
+  billNo                String           @unique
+  physicalBillNo        String?
+  clientId              String
+  brandId               String
+  intakeType            RepairIntakeType
+  repairTypeId          String?
+  storeId               String
+  totalAmount           Int
+  advanceAmount         Int
+  estimatedDeliveryDate DateTime
+  status                RepairStatus     @default(PENDING)
+  isPostponed           Boolean          @default(false)
+  description           String?
+  trackingTokenHash     String
+  createdById           String
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  client     Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  brand      Brand         @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  repairType RepairType?   @relation(fields: [repairTypeId], references: [id], onDelete: SetNull)
+  store      Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy  User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  smsOutbox  SmsOutbox[]
+  audits     RepairAudit[]
+  items      RepairItem[]
+
+  @@index([storeId])
+  @@index([status])
+  @@index([estimatedDeliveryDate])
+  @@index([repairTypeId])
+  @@map("repair")
+}
+
+model RepairItem {
+  id           String   @id @default(cuid())
+  repairId     String
+  repairTypeId String
+  price        Int
+  createdAt    DateTime @default(now())
+
+  repair     Repair     @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  repairType RepairType @relation(fields: [repairTypeId], references: [id], onDelete: Restrict)
+
+  @@index([repairId])
+  @@index([repairTypeId])
+  @@map("repairitem")
+}
+
+model RepairType {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  repairs Repair[]
+  items   RepairItem[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("repairtype")
+}
+
+model RepairBillSequence {
+  id         Int      @id @default(1)
+  nextNumber Int      @default(1)
+  updatedAt  DateTime @updatedAt
+
+  @@map("repairbillsequence")
+}
+
+model SmsOutbox {
+  id               String    @id @default(cuid())
+  repairId         String
+  recipient        String
+  message          String
+  type             String
+  status           SmsStatus @default(PENDING)
+  scheduledFor     DateTime?
+  sentAt           DateTime?
+  providerResponse String?
+  createdAt        DateTime  @default(now())
+
+  repair Repair @relation(fields: [repairId], references: [id], onDelete: Cascade)
+
+  @@index([repairId])
+  @@index([status])
+  @@map("smsoutbox")
+}
+
+model RepairAudit {
+  id            String   @id @default(cuid())
+  repairId      String
+  eventType     String
+  oldValue      String?
+  newValue      String?
+  performedById String
+  createdAt     DateTime @default(now())
+
+  repair      Repair @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  performedBy User   @relation(fields: [performedById], references: [id], onDelete: Restrict)
+
+  @@index([repairId])
+  @@index([eventType])
+  @@map("repairaudit")
+}
+
+model AccountingQuotation {
+  id              String                    @id @default(cuid())
+  quotationNumber String                    @unique @db.VarChar(50)
+  customerId      String
+  storeId         String
+  status          AccountingQuotationStatus @default(DRAFT)
+  currency        String                    @default("LKR") @db.VarChar(10)
+  quotationDate   DateTime                  @db.Date
+  validUntil      DateTime                  @db.Date
+  customerRef     String                    @default("") @db.VarChar(100)
+  preparedBy      String                    @default("") @db.VarChar(100)
+  notes           String                    @default("") @db.Text
+  terms           String                    @default("") @db.Text
+  discount        Decimal                   @default(0) @db.Decimal(18, 4)
+  subtotal        Decimal                   @default(0) @db.Decimal(18, 4)
+  total           Decimal                   @default(0) @db.Decimal(18, 4)
+  createdById     String
+  approvedById    String?
+  approvedAt      DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  customer   AccountingClient          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  store      Store                     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy  AccountingUser            @relation("QuotationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy AccountingUser?           @relation("QuotationApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  lines      AccountingQuotationLine[]
+
+  @@index([customerId])
+  @@index([storeId])
+  @@index([createdById])
+  @@index([status, createdAt])
+  @@index([quotationDate])
+  @@map("accountingquotation")
+}
+
+model AccountingQuotationLine {
+  id          String   @id @default(cuid())
+  quotationId String
+  productId   String
+  itemCode    String   @db.VarChar(60)
+  itemName    String   @db.VarChar(200)
+  description String   @default("") @db.VarChar(500)
+  quantity    Decimal  @db.Decimal(18, 4)
+  unitPrice   Decimal  @db.Decimal(18, 4)
+  lineTotal   Decimal  @db.Decimal(18, 4)
+  uomName     String   @default("") @db.VarChar(100)
+  uomBase     String   @default("") @db.VarChar(100)
+  uomMinQty   Decimal  @default(1) @db.Decimal(18, 4)
+  lineOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  quotation AccountingQuotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  product   AccountingProduct   @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([quotationId, lineOrder])
+  @@index([productId])
+  @@map("accountingquotationline")
+}
+
+model AccountingInvoice {
+  id            String                  @id @default(cuid())
+  invoiceNumber String                  @unique @db.VarChar(50)
+  customerId    String
+  storeId       String
+  status        AccountingInvoiceStatus @default(DRAFT)
+  currency      String                  @default("LKR") @db.VarChar(10)
+  invoiceDate   DateTime                @db.Date
+  dueDate       DateTime                @db.Date
+  customerRef   String                  @default("") @db.VarChar(100)
+  billedBy      String                  @default("") @db.VarChar(100)
+  notes         String                  @default("") @db.Text
+  terms         String                  @default("") @db.Text
+  discount      Decimal                 @default(0) @db.Decimal(18, 4)
+  subtotal      Decimal                 @default(0) @db.Decimal(18, 4)
+  total         Decimal                 @default(0) @db.Decimal(18, 4)
+  createdById   String
+  approvedById  String?
+  approvedAt    DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  customer           AccountingClient                      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  store              Store                                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy          AccountingUser                        @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy         AccountingUser?                       @relation("InvoiceApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  lines              AccountingInvoiceLine[]
+  paymentAllocations AccountingCustomerPaymentAllocation[]
+  customerReturns    AccountingCustomerReturn[]
+
+  @@index([customerId])
+  @@index([storeId])
+  @@index([createdById])
+  @@index([status, createdAt])
+  @@index([invoiceDate])
+  @@map("accountinginvoice")
+}
+
+model AccountingInvoiceLine {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  productId   String
+  itemCode    String   @db.VarChar(60)
+  itemName    String   @db.VarChar(200)
+  description String   @default("") @db.VarChar(500)
+  quantity    Decimal  @db.Decimal(18, 4)
+  unitPrice   Decimal  @db.Decimal(18, 4)
+  discount    Decimal  @default(0) @db.Decimal(18, 4)
+  lineTotal   Decimal  @db.Decimal(18, 4)
+  uomName     String   @default("") @db.VarChar(100)
+  uomBase     String   @default("") @db.VarChar(100)
+  uomMinQty   Decimal  @default(1) @db.Decimal(18, 4)
+  lineOrder   Int      @default(0)
+  // Set when this line sells a specific serial-tracked unit. The
+  // soft-lock semantics mirror AccountingPosBillLine.productSerialId
+  // (see migration 20260601000001): any DRAFT or APPROVED invoice
+  // line referencing a serial blocks that serial from being picked
+  // again. When the invoice is cancelled or the line is removed,
+  // the SET NULL behaviour releases the serial back to the picker.
+  productSerialId String?
+  createdAt   DateTime @default(now())
+
+  invoice             AccountingInvoice                 @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product             AccountingProduct                 @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productSerial       AccountingGoodsReceiptLineSerial? @relation("InvoiceLineProductSerial", fields: [productSerialId], references: [id], onDelete: SetNull)
+  customerReturnLines AccountingCustomerReturnLine[]
+
+  @@index([invoiceId, lineOrder])
+  @@index([productId])
+  @@index([productSerialId])
+  @@map("accountinginvoiceline")
+}
+
+// ─── POS bill ────────────────────────────────────────────────────
+// One entity covering live cart, held bill, posted bill, cancelled
+// bill — discriminated by status + isHeld. Per
+// accounting-theories.md § 7 POS Schema Implications and
+// pos-integration-flow.md § 4.2.
+//
+// Lifecycle:
+//   DRAFT, isHeld=false  - live cart being rung up by a cashier
+//   DRAFT, isHeld=true   - held; reservations + billNo persist
+//   COMPLETED            - posted to GL; settled (cash/card/mixed)
+//                          or merchant-pending (split)
+//   CANCELLED            - abandoned (auto-expired) or explicitly
+//                          deleted before Pay; billNo burned
+//
+// Stock reservation: SUM(line.qty WHERE bill.status = DRAFT) for
+// the productId at the storeId is subtracted from qtyOnHand for
+// other cashiers' availability. See pos-integration-flow.md § 8.2.
+//
+// Bill numbers from form-id config (`POS` series) are assigned at
+// row creation and never recycled — cancelled bills keep their
+// billNo on the cancelled row, the next DRAFT takes the next
+// sequential number. See § 8.4.
+model AccountingPosBill {
+  id     String                  @id @default(cuid())
+  billNo String                  @unique @db.VarChar(50)
+  status AccountingPosBillStatus @default(DRAFT)
+  isHeld Boolean                 @default(false)
+
+  storeId    String
+  cashierId  String
+  customerId String // Always set — walk-in row OR registered customer
+
+  // Set only when paymentMethod = SPLIT — references an
+  // isMerchant=true row in accountingclient.
+  merchantClientId String?
+
+  // Set on Pay, denormalised summary of how this bill was paid.
+  // Detail breakdown lives on AccountingPosBillPayment.
+  paymentMethod AccountingPosBillSummaryMethod?
+
+  // The primary cash/cash-equivalent account picked at Pay time.
+  // For MIXED bills this is the FIRST account selected (the second
+  // is per-bill, not retained as default for next bill). The next
+  // bill's POS screen reads this from the most-recent COMPLETED
+  // bill at this branch. See § 8.6.
+  primaryCashAccountId String?
+
+  // Pricing snapshot at Pay time.
+  subtotal      Decimal @default(0) @db.Decimal(18, 4)
+  totalDiscount Decimal @default(0) @db.Decimal(18, 4)
+  total         Decimal @default(0) @db.Decimal(18, 4)
+
+  // Posting metadata (set on transition DRAFT → COMPLETED).
+  postedAt  DateTime?
+  postingId String? // Snapshot of the journal entry header id for traceability.
+
+  // Cancellation metadata (set on transition to CANCELLED).
+  cancelledAt  DateTime?
+  cancelReason String?   @db.VarChar(80) // e.g. "auto-expired", "user-deleted"
+
+  // Operational fields for hold + auto-expiry.
+  heldAt         DateTime?
+  heldNote       String?   @db.VarChar(200)
+  lastActivityAt DateTime  @default(now())
+
+  notes String @default("") @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store              Store                                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  cashier            AccountingUser                        @relation("PosBillCashier", fields: [cashierId], references: [id], onDelete: Restrict)
+  customer           AccountingClient                      @relation("PosBillCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  merchantClient     AccountingClient?                     @relation("PosBillMerchant", fields: [merchantClientId], references: [id], onDelete: Restrict)
+  primaryCashAccount ChartOfAccount?                       @relation("PosBillPrimaryCashAccount", fields: [primaryCashAccountId], references: [id], onDelete: Restrict)
+  lines              AccountingPosBillLine[]
+  payments           AccountingPosBillPayment[]
+  customerReturns    AccountingCustomerReturn[]            @relation("CustomerReturnFromPosBill")
+  paymentAllocations AccountingCustomerPaymentAllocation[] @relation("CustomerPaymentAllocationPosBill")
+
+  @@index([storeId])
+  @@index([cashierId])
+  @@index([customerId])
+  @@index([merchantClientId])
+  @@index([status, createdAt])
+  @@index([status, isHeld, lastActivityAt]) // for auto-expiry sweep
+  @@index([postedAt])
+  @@map("accountingposbill")
+}
+
+model AccountingPosBillLine {
+  id     String @id @default(cuid())
+  billId String
+
+  productId   String
+  itemCode    String @db.VarChar(60)
+  itemName    String @db.VarChar(200)
+  description String @default("") @db.VarChar(500)
+
+  quantity  Decimal @db.Decimal(18, 4)
+  unitPrice Decimal @db.Decimal(18, 4)
+  // Always 0 for voucher lines per theory § 7.3.
+  discount  Decimal @default(0) @db.Decimal(18, 4)
+  lineTotal Decimal @db.Decimal(18, 4)
+
+  uomName   String  @default("") @db.VarChar(100)
+  uomBase   String  @default("") @db.VarChar(100)
+  uomMinQty Decimal @default(1) @db.Decimal(18, 4)
+
+  // Set when product itemType = VOUCHER — references the specific
+  // serial being sold (from AccountingGoodsReceiptLineSerial). The
+  // serial is "soft-locked" while this line lives in any DRAFT
+  // bill, and transitions to ISSUED state when the bill goes
+  // COMPLETED. ACTIVE-state filtering for the picker excludes
+  // serials referenced by any DRAFT or COMPLETED bill line.
+  voucherSerialId String?
+
+  // Set when product itemType = INVENTORY_ITEM AND
+  // product.serialTrackingEnabled = true. Same soft-lock semantics as
+  // voucherSerialId — a serial referenced by any DRAFT or COMPLETED
+  // bill is unavailable for selection on other bills. Qty is forced
+  // to 1 for serial-tracked product lines (one bill line per serial).
+  productSerialId String?
+
+  lineOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  posBill             AccountingPosBill                 @relation(fields: [billId], references: [id], onDelete: Cascade)
+  product             AccountingProduct                 @relation(fields: [productId], references: [id], onDelete: Restrict)
+  voucherSerial       AccountingGoodsReceiptLineSerial? @relation("PosBillLineVoucherSerial", fields: [voucherSerialId], references: [id], onDelete: SetNull)
+  productSerial       AccountingGoodsReceiptLineSerial? @relation("PosBillLineProductSerial", fields: [productSerialId], references: [id], onDelete: SetNull)
+  customerReturnLines AccountingCustomerReturnLine[]    @relation("CustomerReturnFromPosBillLine")
+
+  @@index([billId, lineOrder])
+  @@index([productId])
+  @@index([voucherSerialId])
+  @@index([productSerialId])
+  @@map("accountingposbillline")
+}
+
+// Tender rows. One bill may have multiple rows (MIXED = two CASH
+// rows; future REDEEM_VOUCHER additions in next phase).
+//
+// Sum of amount across rows must equal bill.total at Pay time.
+model AccountingPosBillPayment {
+  id     String @id @default(cuid())
+  billId String
+
+  method AccountingPosBillTenderMethod
+
+  // Required when method = CASH or CARD; null otherwise.
+  cashAccountId String?
+
+  // Required when method = SPLIT; null otherwise. References an
+  // isMerchant=true row in accountingclient.
+  merchantClientId String?
+
+  // Required when method = REDEEM_VOUCHER; null otherwise. References
+  // the voucher serial being redeemed (per theory § 7.4).
+  voucherSerialId String?
+
+  amount Decimal @db.Decimal(18, 4)
+
+  rowOrder  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  bill           AccountingPosBill                 @relation(fields: [billId], references: [id], onDelete: Cascade)
+  cashAccount    ChartOfAccount?                   @relation("PosBillPaymentCashAccount", fields: [cashAccountId], references: [id], onDelete: Restrict)
+  merchantClient AccountingClient?                 @relation("PosBillPaymentMerchant", fields: [merchantClientId], references: [id], onDelete: Restrict)
+  voucherSerial  AccountingGoodsReceiptLineSerial? @relation("PosBillPaymentVoucherSerial", fields: [voucherSerialId], references: [id], onDelete: Restrict)
+
+  @@index([billId, rowOrder])
+  @@index([cashAccountId])
+  @@index([merchantClientId])
+  @@index([voucherSerialId])
+  @@map("accountingposbillpayment")
+}
