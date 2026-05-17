@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import { ArrowLeft, CheckCircle2, Download, Loader2, Printer } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, Loader2, Mail, MapPin, Phone, Printer } from "lucide-react";
 import { SurfaceCard } from "@/components/accounting/accounting-ui";
 import { useStoreInfo, getStoreAddressLines } from "@/lib/accounting/use-store-info";
 import type { QuotationDetail } from "@/app/api/accounting/quotations/[id]/route";
@@ -346,8 +346,8 @@ export function QuotationPreview({
         className="mx-auto max-w-4xl rounded-3xl border border-[#cdeef3] bg-white shadow-sm"
       >
         <div id="quotation-content">
-          <div className="flex items-start justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff] px-8 py-5">
-            <div className="flex flex-col gap-2">
+          <div className="rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff]">
+            <div className="flex items-center justify-between gap-6 px-8 pt-5 pb-4">
               <Image
                 src="/assets/icon.png"
                 alt="Arc Eye"
@@ -356,19 +356,31 @@ export function QuotationPreview({
                 className="h-12 w-auto object-contain"
                 priority
               />
-              <div className="space-y-0.5 text-[11px] leading-snug text-[#3f3b38]">
-                <p>{COMPANY_CONTACT.address}</p>
-                <p>{COMPANY_CONTACT.phones.join("  ·  ")}</p>
-                <p className="text-[#0891a8]">{COMPANY_CONTACT.email}</p>
+              <div className="text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#0891a8]">
+                  Quotation
+                </p>
+                <p className="mt-0.5 text-2xl font-bold text-[#1f1d1c]">{quotation.quotationNumber}</p>
+                <div className="mt-1.5 flex items-center justify-end gap-2">
+                  <StatusBadge status={quotation.status} label={quotation.statusLabel} />
+                </div>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#0891a8]">
-                Quotation
-              </p>
-              <p className="mt-0.5 text-2xl font-bold text-[#1f1d1c]">{quotation.quotationNumber}</p>
-              <div className="mt-1.5 flex items-center justify-end gap-2">
-                <StatusBadge status={quotation.status} label={quotation.statusLabel} />
+            {/* Sub-divider — keeps the contact strip visually tied to the
+                header card while still reading as a distinct row. */}
+            <div className="mx-8 h-px bg-[#cdeef3]/70" />
+            <div className="grid grid-cols-3 items-center gap-4 px-8 py-3 text-[11px] text-[#3f3b38]">
+              <div className="flex items-center gap-2">
+                <Phone className="h-3.5 w-3.5 flex-none text-[#0891a8]" />
+                <span className="leading-snug">{COMPANY_CONTACT.phones.join("  ·  ")}</span>
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <Mail className="h-3.5 w-3.5 flex-none text-[#0891a8]" />
+                <span className="leading-snug text-[#0891a8]">{COMPANY_CONTACT.email}</span>
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <MapPin className="h-3.5 w-3.5 flex-none text-[#0891a8]" />
+                <span className="leading-snug">{COMPANY_CONTACT.address}</span>
               </div>
             </div>
           </div>
