@@ -9,7 +9,11 @@ import { Mail, MapPin, Phone } from "lucide-react";
 // contact footers; for now ArcEye DC has one head-office address/phone/
 // email that goes on all customer-facing paper.
 export const COMPANY_CONTACT = {
-  address: "B25/GF4, Mount Clifford Range, Homagama",
+  // Two branch addresses — both render in the right column, stacked.
+  addresses: [
+    "27/1, Appuhami Mw, Kinigama, Bandarawela",
+    "245/5, Hiripitiya, Pannipitiya",
+  ],
   phones: ["+94 76 996 8001", "+94 74 0765 765"],
   email: "hello@arceyedc.com",
 } as const;
@@ -31,7 +35,11 @@ export function CompanyContactRow() {
       </div>
       <div className="flex items-center justify-end gap-2">
         <MapPin className="h-3.5 w-3.5 flex-none text-[#0891a8]" />
-        <span className="leading-snug">{COMPANY_CONTACT.address}</span>
+        <div className="flex flex-col items-end leading-snug">
+          {COMPANY_CONTACT.addresses.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </div>
       </div>
     </div>
   );
