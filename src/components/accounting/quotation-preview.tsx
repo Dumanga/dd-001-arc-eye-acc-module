@@ -24,6 +24,16 @@ function formatMoney(value: string, currency: string): string {
   })}`;
 }
 
+// Company contact block printed on the form header. Sourced from the user
+// (Arc Eye DC head office). Kept as a constant here — flip to a settings
+// table later if branches need their own footers, but for now there's only
+// one outward-facing address/phone/email.
+const COMPANY_CONTACT = {
+  address: "B25/GF4, Mount Clifford Range, Homagama",
+  phones: ["+94 76 996 8001", "+94 74 0765 765"],
+  email: "hello@arceyedc.com",
+} as const;
+
 const QT_STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   DRAFT: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
   APPROVED: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
@@ -336,8 +346,8 @@ export function QuotationPreview({
         className="mx-auto max-w-4xl rounded-3xl border border-[#cdeef3] bg-white shadow-sm"
       >
         <div id="quotation-content">
-          <div className="flex items-center justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff] px-8 py-5">
-            <div className="flex flex-col gap-0.5">
+          <div className="flex items-start justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff] px-8 py-5">
+            <div className="flex flex-col gap-2">
               <Image
                 src="/assets/icon.png"
                 alt="Arc Eye"
@@ -346,6 +356,11 @@ export function QuotationPreview({
                 className="h-12 w-auto object-contain"
                 priority
               />
+              <div className="space-y-0.5 text-[11px] leading-snug text-[#3f3b38]">
+                <p>{COMPANY_CONTACT.address}</p>
+                <p>{COMPANY_CONTACT.phones.join("  ·  ")}</p>
+                <p className="text-[#0891a8]">{COMPANY_CONTACT.email}</p>
+              </div>
             </div>
             <div className="text-right">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#0891a8]">
