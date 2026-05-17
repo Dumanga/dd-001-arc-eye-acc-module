@@ -176,6 +176,11 @@ export function QuotationsScreen() {
     createInitialDraft(FALLBACK_QUOTATION_NUMBER, "")
   );
   const [pickedStoreId, setPickedStoreId] = useState<string | null>(null);
+  // Mirrors the super-admin selection in the header's "Create on behalf of"
+  // picker. The picker manages its own internal state; this lifts a copy up
+  // so per-row actions can be gated on it. Branch users never set this
+  // (the picker isn't rendered for them).
+  const [headerPickedStoreId, setHeaderPickedStoreId] = useState<string | null>(null);
   const [filterStoreId, setFilterStoreId] = useState<string | null>(null);
   const {
     viewer,
@@ -553,12 +558,11 @@ export function QuotationsScreen() {
   }, [effectivePage, filteredItems]);
 
   const showBranchColumn = viewer?.role === "SUPER_ADMIN";
-  // Super admins must explicitly pick a specific branch via the BranchFilter
-  // before any per-row actions (View / Edit / Recall) are clickable. "All
-  // branches" doesn't count as a context — they have to commit to one,
-  // even when there's only a single active branch in the system. Branch
-  // users have an implicit branch and aren't gated.
-  const needsBranchPick = viewer?.role === "SUPER_ADMIN" && !filterStoreId;
+  // Super admins must explicitly pick a specific branch in the header
+  // "Create on behalf of [Pick branch]" dropdown before any per-row
+  // actions (View / Edit / Recall) are clickable. Branch users have an
+  // implicit branch and aren't gated.
+  const needsBranchPick = viewer?.role === "SUPER_ADMIN" && !headerPickedStoreId;
 
   const tableRows = useMemo(
     () =>
@@ -697,6 +701,7 @@ export function QuotationsScreen() {
           branches={activeBranches}
           loading={viewerLoading}
           onCreate={openCreateMode}
+          onPickedChange={setHeaderPickedStoreId}
         />
       ),
     };
@@ -771,8 +776,9 @@ export function QuotationsScreen() {
                 <>
                   {needsBranchPick ? (
                     <div className="rounded-2xl border border-[#ffd9b5] bg-[#fff7f0] px-4 py-3 text-sm text-[#b45e1a]">
-                      Pick a specific branch from the filter above to view, edit, or recall
-                      quotations. Super-admin actions require an active branch context.
+                      Pick a branch in the <span className="font-semibold">Create on behalf of</span>{" "}
+                      dropdown at the top of this page to view, edit, or recall quotations.
+                      Super-admin actions require an active branch context.
                     </div>
                   ) : null}
                   <DataTable
@@ -791,7 +797,7 @@ export function QuotationsScreen() {
                           disabled={needsBranchPick}
                           title={
                             needsBranchPick
-                              ? "Pick a specific branch in the filter above to enable this action."
+                              ? "Pick a branch in the header dropdown to enable this action."
                               : undefined
                           }
                           onClick={() => {

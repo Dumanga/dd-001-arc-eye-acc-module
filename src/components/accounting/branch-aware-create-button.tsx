@@ -35,15 +35,27 @@ export function BranchAwareCreateButton({
   branches,
   loading,
   onCreate,
+  onPickedChange,
 }: {
   label: string;
   viewer: ViewerSummary | null;
   branches: ActiveBranch[];
   loading?: boolean;
   onCreate: (storeId: string | undefined) => void;
+  // Fires whenever the super-admin picker selection changes. Lets parent
+  // screens use the header pick as a global "operating branch" — gate
+  // row actions, scope the list, etc. — without having to wait for the
+  // Create click. Branch users never trigger this (they have an
+  // implicit branch and the picker isn't rendered).
+  onPickedChange?: (storeId: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [pickedStoreId, setPickedStoreId] = useState<string | null>(null);
+  const [pickedStoreId, setPickedStoreIdInternal] = useState<string | null>(null);
+
+  const setPickedStoreId = (next: string | null) => {
+    setPickedStoreIdInternal(next);
+    onPickedChange?.(next);
+  };
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);

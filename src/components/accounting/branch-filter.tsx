@@ -38,10 +38,8 @@ export function BranchFilter({
   }, [open]);
 
   // Hide the filter for branch users (server already locks them to their
-  // branch) and when there are no active branches at all. Super admins
-  // always see the filter, even with a single branch — picking it is a
-  // required handshake before per-row actions unlock on the list screens.
-  if (!viewer || viewer.role !== "SUPER_ADMIN" || branches.length === 0) {
+  // branch) and when there are 0-1 active branches (filter would be a no-op).
+  if (!viewer || viewer.role !== "SUPER_ADMIN" || branches.length < 2) {
     return null;
   }
 
