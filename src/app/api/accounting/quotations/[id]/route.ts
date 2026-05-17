@@ -26,6 +26,10 @@ export type QuotationDetail = {
   quotationNumber: string;
   status: string;
   statusLabel: string;
+  // Branch the quotation belongs to — surfaced so the edit form can
+  // pre-pick the same branch in the screen state. Branch is immutable
+  // on edit (PATCH ignores any storeId in the body).
+  storeId: string;
   currency: string;
   quotationDate: string;
   validUntil: string;
@@ -104,6 +108,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       quotationNumber: quotation.quotationNumber,
       status: quotation.status,
       statusLabel: STATUS_LABELS[quotation.status] ?? quotation.status,
+      storeId: quotation.storeId,
       currency: quotation.currency,
       quotationDate: quotation.quotationDate.toISOString().slice(0, 10),
       validUntil: quotation.validUntil.toISOString().slice(0, 10),

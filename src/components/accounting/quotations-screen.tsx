@@ -313,6 +313,7 @@ export function QuotationsScreen() {
           quotation: {
             id: string;
             quotationNumber: string;
+            storeId: string;
             quotationDate: string;
             validUntil: string;
             customerRef: string;
@@ -348,6 +349,10 @@ export function QuotationsScreen() {
         throw new Error(payload.message ?? "Failed to load quotation for editing.");
       }
       const q = payload.data.quotation;
+      // Pre-pick the branch the quotation belongs to — mirrors what
+      // BranchAwareCreateButton does for create. Branch is immutable on
+      // edit (the PATCH route preserves the existing storeId).
+      setPickedStoreId(q.storeId);
       setDraft({
         quotationNumber: q.quotationNumber,
         customerRef: q.customerRef,
