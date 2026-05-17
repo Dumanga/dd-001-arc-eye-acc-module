@@ -124,14 +124,28 @@ type Props = {
   quotationId: string;
   onBack: () => void;
   onApproved?: () => void;
+  // Super-admin-only Edit + Recall hooks. The screen wrapper passes these
+  // through when the viewer is a SUPER_ADMIN; otherwise the buttons stay
+  // hidden in the UI.
+  onEdit?: () => void;
+  onRecalled?: () => void;
+  viewerRole?: "SUPER_ADMIN" | "CASHIER" | "DATA_ENTRY" | "SUPERVISOR";
 };
 
-export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
+export function QuotationPreview({
+  quotationId,
+  onBack,
+  onApproved,
+  onEdit,
+  onRecalled,
+  viewerRole,
+}: Props) {
   const [quotation, setQuotation] = useState<QuotationDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
+  const [recalling, setRecalling] = useState(false);
   const [reloadCounter, setReloadCounter] = useState(0);
 
   const store = useStoreInfo();
@@ -163,6 +177,29 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
 
   function handlePrint() {
     if (quotation) openPrintWindow(quotation.quotationNumber);
+  }
+
+  async function handleRecall() {
+    if (!quotation || recalling) return;
+    if (!window.confirm(`Recall ${quotation.quotationNumber} back to DRAFT? You can edit it after recall.`)) return;
+    setRecalling(true);
+    setApproveError(null);
+    try {
+      const res = await fetch(`/api/accounting/quotations/${quotation.id}/unapprove`, {
+        method: "POST",
+      });
+      const payload = (await res.json()) as { success: boolean; message?: string };
+      if (payload.success) {
+        onRecalled?.();
+        setReloadCounter((c) => c + 1);
+      } else {
+        setApproveError(payload.message ?? "Failed to recall quotation.");
+      }
+    } catch {
+      setApproveError("Network error while recalling the quotation. Please try again.");
+    } finally {
+      setRecalling(false);
+    }
   }
 
   async function handleApprove() {
@@ -255,6 +292,25 @@ export function QuotationPreview({ quotationId, onBack, onApproved }: Props) {
             <Download className="h-4 w-4" />
             Download PDF
           </button>
+          {viewerRole === "SUPER_ADMIN" && quotation.status === "DRAFT" && onEdit ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-white px-4 py-2.5 text-sm font-semibold text-[#0891a8] transition hover:bg-[#ecfcff]"
+            >
+              Edit
+            </button>
+          ) : null}
+          {viewerRole === "SUPER_ADMIN" && quotation.status === "APPROVED" ? (
+            <button
+              type="button"
+              onClick={handleRecall}
+              disabled={recalling}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#f3c4bb] bg-white px-4 py-2.5 text-sm font-semibold text-[#b94f37] transition hover:bg-[#fff3f0] disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {recalling ? "Recalling…" : "Recall"}
+            </button>
+          ) : null}
           {!isApproved ? (
             <button
               type="button"

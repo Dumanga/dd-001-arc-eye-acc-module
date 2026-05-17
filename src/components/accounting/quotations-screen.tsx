@@ -78,6 +78,7 @@ type RemarkApiItem = {
 type ScreenState =
   | { mode: "list" }
   | { mode: "create" }
+  | { mode: "edit"; quotationId: string }
   | { mode: "preview"; quotationId: string };
 
 const STATUS_PILL_MAP: Record<QuotationStatus, string> = {
@@ -288,6 +289,166 @@ export function QuotationsScreen() {
 
   // Pending Forms inbox deep-links here with ?id=<quotationId>.
   useOpenPreviewFromUrl(openPreview);
+
+  // ── Super-admin Edit mode ──────────────────────────────────────────────
+  // Fetches the existing DRAFT quotation, hydrates the form-panel draft
+  // state from it, then switches the screen into edit mode. The form panel
+  // is reused as-is — onSubmit is wired to PATCH instead of POST.
+  async function openEditMode(quotationId: string) {
+    setCreateDataLoading(true);
+    setCreateDataError(null);
+    setScreenState({ mode: "edit", quotationId });
+    try {
+      // Load the picker/remark data the form needs.
+      void loadCreateFormData();
+
+      const res = await fetch(`/api/accounting/quotations/${quotationId}`);
+      const payload = (await res.json()) as {
+        success: boolean;
+        message?: string;
+        data: {
+          quotation: {
+            id: string;
+            quotationNumber: string;
+            quotationDate: string;
+            validUntil: string;
+            customerRef: string;
+            preparedBy: string;
+            currency: string;
+            discount: string;
+            notes: string;
+            terms: string;
+            customer: {
+              id: string;
+              name: string;
+              mobile: string;
+              email: string;
+              address: string;
+              currency: string;
+            };
+            lines: Array<{
+              id: string;
+              productId: string;
+              productCode: string;
+              productName: string;
+              description: string;
+              quantity: string;
+              unitPrice: string;
+              uomName: string;
+              uomBase: string;
+              uomMinQty: string;
+            }>;
+          };
+        } | null;
+      };
+      if (!payload.success || !payload.data) {
+        throw new Error(payload.message ?? "Failed to load quotation for editing.");
+      }
+      const q = payload.data.quotation;
+      setDraft({
+        quotationNumber: q.quotationNumber,
+        customerRef: q.customerRef,
+        preparedBy: q.preparedBy,
+        quotationDate: q.quotationDate,
+        validUntil: q.validUntil,
+        currency: q.currency,
+        discount: q.discount,
+        notes: q.notes,
+        terms: q.terms,
+        customer: {
+          id: q.customer.id,
+          code: q.customer.mobile,
+          name: q.customer.name,
+          contact: q.customer.mobile,
+          city: q.customer.address,
+          currency: q.customer.currency,
+          taxes: [],
+        },
+        lines: q.lines.map((line) => ({
+          id: line.id,
+          itemId: line.productId,
+          itemCode: line.productCode,
+          itemName: line.productName,
+          itemLabel: line.productName,
+          description: line.description,
+          quantity: line.quantity,
+          price: line.unitPrice,
+          uomName: line.uomName,
+          uomBase: line.uomBase,
+          uomMinQty: line.uomMinQty,
+        })),
+      });
+    } catch (error) {
+      setCreateDataError(
+        error instanceof Error ? error.message : "Unable to load quotation for editing.",
+      );
+    } finally {
+      setCreateDataLoading(false);
+    }
+  }
+
+  async function handleUpdateQuotation(currentDraft: QuotationDraft) {
+    if (screenState.mode !== "edit") return;
+    if (!currentDraft.customer) {
+      setToast({ tone: "error", message: "Customer is required." });
+      return;
+    }
+    if (!currentDraft.lines.length) {
+      setToast({ tone: "error", message: "Add at least one line item." });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/accounting/quotations/${screenState.quotationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: currentDraft.customer.id,
+          quotationDate: currentDraft.quotationDate,
+          validUntil: currentDraft.validUntil,
+          customerRef: currentDraft.customerRef,
+          preparedBy: currentDraft.preparedBy,
+          currency: currentDraft.currency,
+          notes: currentDraft.notes,
+          terms: currentDraft.terms,
+          discount: currentDraft.discount,
+          lines: currentDraft.lines.map((line, idx) => ({
+            productId: line.itemId,
+            itemCode: line.itemCode,
+            itemName: line.itemName,
+            description: line.description,
+            quantity: line.quantity,
+            unitPrice: line.price,
+            uomName: line.uomName,
+            uomBase: line.uomBase,
+            uomMinQty: line.uomMinQty,
+            lineOrder: idx,
+          })),
+        }),
+      });
+
+      const payload = (await res.json()) as {
+        success: boolean;
+        message?: string;
+        data: { id: string; quotationNumber: string } | null;
+      };
+      if (!res.ok || !payload.success || !payload.data) {
+        throw new Error(payload.message ?? "Failed to update quotation.");
+      }
+
+      setToast({ tone: "success", message: `Quotation ${payload.data.quotationNumber} updated.` });
+      void loadQuotationList();
+      setScreenState({ mode: "preview", quotationId: payload.data.id });
+    } catch (error) {
+      setToast({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Unable to update quotation.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleCreateQuotation(currentDraft: QuotationDraft) {
     if (!currentDraft.customer) {
@@ -697,6 +858,48 @@ export function QuotationsScreen() {
         </>
       )}
 
+      {/* Edit mode (super-admin only) — reuses the same form panel as
+          create, with PATCH on submit. Quotation number is locked
+          (immutable) and is shown in the panel's read-only field. */}
+      {screenState.mode === "edit" && (
+        <>
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#cdeef3] bg-[#ecfcff] px-4 py-3 text-sm text-[#0e7490]">
+            <span>
+              Editing <span className="font-semibold">{draft.quotationNumber}</span> — changes
+              save in place when you click Save.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setScreenState({
+                  mode: "preview",
+                  quotationId: screenState.quotationId,
+                });
+              }}
+              className="rounded-xl border border-[#cdeef3] bg-white px-3 py-1.5 text-xs font-semibold text-[#0891a8] transition hover:bg-[#ecfcff]"
+            >
+              Cancel edit
+            </button>
+          </div>
+          {createDataLoading ? (
+            <div className="rounded-2xl border border-[#e7ddd4] bg-[#fffaf5] px-4 py-3 text-sm text-[#7c6f65]">
+              Loading quotation…
+            </div>
+          ) : null}
+          {createDataError ? (
+            <div className="rounded-2xl border border-[#f3c4bb] bg-[#fff3f0] px-4 py-3 text-sm text-[#b94f37]">
+              {createDataError}
+            </div>
+          ) : null}
+          <QuotationFormPanel
+            formId={QUOTATION_FORM_ID}
+            draft={draft}
+            onChange={setDraft}
+            onSubmit={handleUpdateQuotation}
+          />
+        </>
+      )}
+
       {/* Preview mode */}
       {screenState.mode === "preview" && (
         <QuotationPreview
@@ -706,6 +909,19 @@ export function QuotationsScreen() {
             void loadQuotationList();
           }}
           onApproved={() => {
+            void loadQuotationList();
+          }}
+          viewerRole={viewer?.role}
+          onEdit={
+            viewer?.role === "SUPER_ADMIN"
+              ? () => {
+                  if (screenState.mode === "preview") {
+                    void openEditMode(screenState.quotationId);
+                  }
+                }
+              : undefined
+          }
+          onRecalled={() => {
             void loadQuotationList();
           }}
         />
