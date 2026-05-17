@@ -555,17 +555,10 @@ export function QuotationsScreen() {
   const showBranchColumn = viewer?.role === "SUPER_ADMIN";
   // Super admins must explicitly pick a specific branch via the BranchFilter
   // before any per-row actions (View / Edit / Recall) are clickable. "All
-  // branches" doesn't count as a context — they have to commit to one.
-  //
-  // The gate only kicks in when there's actually a choice to make
-  // (2+ active branches). With 0–1 branches the BranchFilter is hidden
-  // (see branch-filter.tsx), so super admin would have no way to pick —
-  // we treat that case as "no ambiguity" and skip the gate. Branch users
-  // always have an implicit branch and aren't gated either.
-  const needsBranchPick =
-    viewer?.role === "SUPER_ADMIN" &&
-    !filterStoreId &&
-    activeBranches.length >= 2;
+  // branches" doesn't count as a context — they have to commit to one,
+  // even when there's only a single active branch in the system. Branch
+  // users have an implicit branch and aren't gated.
+  const needsBranchPick = viewer?.role === "SUPER_ADMIN" && !filterStoreId;
 
   const tableRows = useMemo(
     () =>
