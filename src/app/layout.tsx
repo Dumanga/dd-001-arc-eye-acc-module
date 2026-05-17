@@ -15,8 +15,8 @@ const bodyFont = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Bat Repair Ops",
-  description: "Operations management for cricket bat repair workflows.",
+  title: "ArcEye Design Consultants",
+  description: "Accounting workspace for ArcEye Design Consultants.",
   icons: {
     icon: "/assets/logo-arceye.png",
     shortcut: "/assets/logo-arceye.png",
