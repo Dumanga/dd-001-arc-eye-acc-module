@@ -4,6 +4,10 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { ArrowLeft, CheckCircle2, Download, Loader2, Printer } from "lucide-react";
 import { SurfaceCard } from "@/components/accounting/accounting-ui";
+import {
+  CompanyContactDivider,
+  CompanyContactRow,
+} from "@/components/accounting/company-contact-row";
 import { useStoreInfo, getStoreAddressLines } from "@/lib/accounting/use-store-info";
 import type { CustomerReturnDetail } from "@/app/api/accounting/customer-returns/[id]/route";
 
@@ -301,7 +305,8 @@ export function CustomerReturnPreview({ returnId, onBack, onApproved }: Props) {
       >
         <div id="return-content">
           {/* Header */}
-          <div className="flex items-center justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff] px-8 py-5">
+          <div className="rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff]">
+          <div className="flex items-center justify-between gap-6 px-8 pt-5 pb-4">
             <div className="flex flex-col gap-0.5">
               <Image
                 src="/assets/icon.png"
@@ -323,6 +328,9 @@ export function CustomerReturnPreview({ returnId, onBack, onApproved }: Props) {
                 <StatusBadge status={ret.status} label={ret.statusLabel} />
               </div>
             </div>
+          </div>
+          <CompanyContactDivider />
+          <CompanyContactRow />
           </div>
 
           <div className="h-px bg-[#cdeef3]" />

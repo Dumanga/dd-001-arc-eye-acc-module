@@ -5,6 +5,10 @@ import Image from "next/image";
 import { ArrowLeft, Download, Loader2, Printer } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SurfaceCard } from "@/components/accounting/accounting-ui";
+import {
+  CompanyContactDivider,
+  CompanyContactRow,
+} from "@/components/accounting/company-contact-row";
 import { useStoreInfo, getStoreAddressLines } from "@/lib/accounting/use-store-info";
 import type { PoDetail } from "@/app/api/accounting/purchase-orders/[id]/route";
 
@@ -280,7 +284,8 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
         <div id="po-content">
 
         {/* ── Header ──────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff] px-8 py-5">
+        <div className="rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff]">
+        <div className="flex items-center justify-between gap-6 px-8 pt-5 pb-4">
           <div className="flex flex-col gap-0.5">
             <Image
               src="/assets/icon.png"
@@ -300,6 +305,9 @@ export function PurchaseOrderPreview({ poId, onBack }: Props) {
               <StatusBadge status={po.status} label={po.statusLabel} />
             </div>
           </div>
+        </div>
+        <CompanyContactDivider />
+        <CompanyContactRow />
         </div>
 
         {/* ── Divider line ────────────────────────────────────────── */}

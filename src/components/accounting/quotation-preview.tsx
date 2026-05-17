@@ -2,8 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import { ArrowLeft, CheckCircle2, Download, Loader2, Mail, MapPin, Phone, Printer } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, Loader2, Printer } from "lucide-react";
 import { SurfaceCard } from "@/components/accounting/accounting-ui";
+import {
+  CompanyContactDivider,
+  CompanyContactRow,
+} from "@/components/accounting/company-contact-row";
 import { useStoreInfo, getStoreAddressLines } from "@/lib/accounting/use-store-info";
 import type { QuotationDetail } from "@/app/api/accounting/quotations/[id]/route";
 
@@ -23,16 +27,6 @@ function formatMoney(value: string, currency: string): string {
     maximumFractionDigits: 2,
   })}`;
 }
-
-// Company contact block printed on the form header. Sourced from the user
-// (Arc Eye DC head office). Kept as a constant here — flip to a settings
-// table later if branches need their own footers, but for now there's only
-// one outward-facing address/phone/email.
-const COMPANY_CONTACT = {
-  address: "B25/GF4, Mount Clifford Range, Homagama",
-  phones: ["+94 76 996 8001", "+94 74 0765 765"],
-  email: "hello@arceyedc.com",
-} as const;
 
 const QT_STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   DRAFT: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
@@ -366,23 +360,8 @@ export function QuotationPreview({
                 </div>
               </div>
             </div>
-            {/* Sub-divider — keeps the contact strip visually tied to the
-                header card while still reading as a distinct row. */}
-            <div className="mx-8 h-px bg-[#cdeef3]/70" />
-            <div className="grid grid-cols-3 items-center gap-4 px-8 py-3 text-[11px] text-[#3f3b38]">
-              <div className="flex items-center gap-2">
-                <Phone className="h-3.5 w-3.5 flex-none text-[#0891a8]" />
-                <span className="leading-snug">{COMPANY_CONTACT.phones.join("  ·  ")}</span>
-              </div>
-              <div className="flex items-center justify-center gap-2">
-                <Mail className="h-3.5 w-3.5 flex-none text-[#0891a8]" />
-                <span className="leading-snug text-[#0891a8]">{COMPANY_CONTACT.email}</span>
-              </div>
-              <div className="flex items-center justify-end gap-2">
-                <MapPin className="h-3.5 w-3.5 flex-none text-[#0891a8]" />
-                <span className="leading-snug">{COMPANY_CONTACT.address}</span>
-              </div>
-            </div>
+            <CompanyContactDivider />
+            <CompanyContactRow />
           </div>
 
           <div className="h-px bg-[#cdeef3]" />

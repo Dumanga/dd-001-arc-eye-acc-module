@@ -3,6 +3,10 @@
 import React from "react";
 import Image from "next/image";
 import { ArrowLeft, Download, Printer } from "lucide-react";
+import {
+  CompanyContactDivider,
+  CompanyContactRow,
+} from "@/components/accounting/company-contact-row";
 import type { StockReportItem } from "@/app/api/accounting/inventory/stock-report/route";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -185,7 +189,8 @@ export function StockReportPreview({
       >
         <div id="report-content">
           {/* Header — same letterhead as invoice/GRN previews, no status badge */}
-          <div className="flex items-center justify-between gap-6 rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff] px-8 py-5">
+          <div className="rounded-t-3xl bg-gradient-to-br from-[#e0fafd] to-[#f1fdff]">
+          <div className="flex items-center justify-between gap-6 px-8 pt-5 pb-4">
             <div className="flex flex-col gap-0.5">
               <Image
                 src="/assets/icon.png"
@@ -207,6 +212,9 @@ export function StockReportPreview({
                 {formatDisplayDate(generatedAt)}
               </p>
             </div>
+          </div>
+          <CompanyContactDivider />
+          <CompanyContactRow />
           </div>
 
           <div className="h-px bg-[#cdeef3]" />
