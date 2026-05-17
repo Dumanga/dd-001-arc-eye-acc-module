@@ -299,8 +299,11 @@ export function QuotationsScreen() {
     setCreateDataError(null);
     setScreenState({ mode: "edit", quotationId });
     try {
-      // Load the picker/remark data the form needs.
-      void loadCreateFormData();
+      // NOTE: we deliberately do NOT call loadCreateFormData() here — it
+      // would race with the detail fetch and overwrite the draft with a
+      // fresh "create" draft (next form-id number + default remarks). The
+      // quotation already has its own number, terms, and customer; pickers
+      // load their own data on demand if the user opens them.
 
       const res = await fetch(`/api/accounting/quotations/${quotationId}`);
       const payload = (await res.json()) as {
