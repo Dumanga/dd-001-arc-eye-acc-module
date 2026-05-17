@@ -553,6 +553,19 @@ export function QuotationsScreen() {
   }, [effectivePage, filteredItems]);
 
   const showBranchColumn = viewer?.role === "SUPER_ADMIN";
+  // Super admins must explicitly pick a specific branch via the BranchFilter
+  // before any per-row actions (View / Edit / Recall) are clickable. "All
+  // branches" doesn't count as a context — they have to commit to one.
+  //
+  // The gate only kicks in when there's actually a choice to make
+  // (2+ active branches). With 0–1 branches the BranchFilter is hidden
+  // (see branch-filter.tsx), so super admin would have no way to pick —
+  // we treat that case as "no ambiguity" and skip the gate. Branch users
+  // always have an implicit branch and aren't gated either.
+  const needsBranchPick =
+    viewer?.role === "SUPER_ADMIN" &&
+    !filterStoreId &&
+    activeBranches.length >= 2;
 
   const tableRows = useMemo(
     () =>
@@ -763,10 +776,17 @@ export function QuotationsScreen() {
                 </div>
               ) : (
                 <>
+                  {needsBranchPick ? (
+                    <div className="rounded-2xl border border-[#ffd9b5] bg-[#fff7f0] px-4 py-3 text-sm text-[#b45e1a]">
+                      Pick a specific branch from the filter above to view, edit, or recall
+                      quotations. Super-admin actions require an active branch context.
+                    </div>
+                  ) : null}
                   <DataTable
                     columns={tableColumns}
                     rows={tableRows}
                     onRowClick={(row) => {
+                      if (needsBranchPick) return;
                       if (typeof row.id === "string" && row.id) openPreview(row.id);
                     }}
                     rowAction={(row) => {
@@ -775,8 +795,21 @@ export function QuotationsScreen() {
                       return (
                         <button
                           type="button"
-                          onClick={() => openPreview(rowId)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-[#e2d8cf] bg-white px-3 py-1 text-xs font-medium text-[#786f69] transition hover:bg-[#fff7f0]"
+                          disabled={needsBranchPick}
+                          title={
+                            needsBranchPick
+                              ? "Pick a specific branch in the filter above to enable this action."
+                              : undefined
+                          }
+                          onClick={() => {
+                            if (needsBranchPick) return;
+                            openPreview(rowId);
+                          }}
+                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-medium transition ${
+                            needsBranchPick
+                              ? "cursor-not-allowed border-[#ebe0d4] bg-[#f6efe8] text-[#a8998a]"
+                              : "border-[#e2d8cf] bg-white text-[#786f69] hover:bg-[#fff7f0]"
+                          }`}
                         >
                           <Eye className="h-3.5 w-3.5" />
                           View
