@@ -564,6 +564,16 @@ export function QuotationsScreen() {
   // implicit branch and aren't gated.
   const needsBranchPick = viewer?.role === "SUPER_ADMIN" && !headerPickedStoreId;
 
+  // Branch the quotation under edit belongs to. openEditMode() seeds
+  // pickedStoreId from the loaded detail; we surface it in the page
+  // header + banner so the user sees "which branch is this on" instead
+  // of the create-mode "Pick branch" dropdown. Branch is immutable on
+  // edit — the PATCH route ignores any storeId in the body.
+  const editingBranch =
+    screenState.mode === "edit" && pickedStoreId
+      ? activeBranches.find((b) => b.id === pickedStoreId) ?? null
+      : null;
+
   const tableRows = useMemo(
     () =>
       paginatedItems.map((q) => ({
@@ -686,6 +696,52 @@ export function QuotationsScreen() {
     if (screenState.mode === "preview") {
       return {
         eyebrow: "CUSTOMERS / QUOTATIONS / PREVIEW",
+      };
+    }
+
+    if (screenState.mode === "edit") {
+      const editingQuotationId = screenState.quotationId;
+      return {
+        eyebrow: "CUSTOMERS / QUOTATIONS / EDIT",
+        action: (
+          <div className="flex flex-wrap items-center gap-2">
+            {editingBranch ? (
+              <span className="inline-flex items-center gap-2 rounded-xl border border-[#cdeef3] bg-[#ecfcff] px-3 py-2 text-sm font-semibold text-[#0e7490]">
+                <span className="text-xs uppercase tracking-[0.16em] text-[#0891a8]">
+                  Branch
+                </span>
+                <span className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.14em] text-[#0e7490]">
+                  {editingBranch.code}
+                </span>
+                <span className="text-xs font-medium text-[#155e75]">
+                  {editingBranch.name}
+                </span>
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setScreenState({
+                  mode: "preview",
+                  quotationId: editingQuotationId,
+                });
+              }}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#e2d8cf] bg-white px-4 py-2.5 text-sm font-semibold text-[#5f5750] transition hover:bg-[#fff7f0] disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
+            <button
+              type="submit"
+              form={QUOTATION_FORM_ID}
+              disabled={saving || createDataLoading}
+              className="rounded-xl bg-[#ff7a12] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#ea6a08] disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {saving ? "Updating…" : "Update Quotation"}
+            </button>
+          </div>
+        ),
       };
     }
 
@@ -903,23 +959,18 @@ export function QuotationsScreen() {
           (immutable) and is shown in the panel's read-only field. */}
       {screenState.mode === "edit" && (
         <>
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#cdeef3] bg-[#ecfcff] px-4 py-3 text-sm text-[#0e7490]">
-            <span>
-              Editing <span className="font-semibold">{draft.quotationNumber}</span> — changes
-              save in place when you click Save.
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setScreenState({
-                  mode: "preview",
-                  quotationId: screenState.quotationId,
-                });
-              }}
-              className="rounded-xl border border-[#cdeef3] bg-white px-3 py-1.5 text-xs font-semibold text-[#0891a8] transition hover:bg-[#ecfcff]"
-            >
-              Cancel edit
-            </button>
+          <div className="rounded-2xl border border-[#cdeef3] bg-[#ecfcff] px-4 py-3 text-sm text-[#0e7490]">
+            Editing <span className="font-semibold">{draft.quotationNumber}</span>
+            {editingBranch ? (
+              <>
+                {" "}on branch{" "}
+                <span className="font-semibold">{editingBranch.code}</span>{" "}
+                <span className="text-[#155e75]">({editingBranch.name})</span>
+              </>
+            ) : null}
+            . Branch is locked on edit — click{" "}
+            <span className="font-semibold">Update Quotation</span> at the top right to
+            save changes.
           </div>
           {createDataLoading ? (
             <div className="rounded-2xl border border-[#e7ddd4] bg-[#fffaf5] px-4 py-3 text-sm text-[#7c6f65]">
